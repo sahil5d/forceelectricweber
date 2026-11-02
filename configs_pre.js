@@ -279,7 +279,7 @@ const PAR_L = 120; // m (identical length for both wires)
 const PAR_DX = PAR_L / PAR_N;
 const PAR_D0 = 4; // m, initial distance between parallel Wire 1 (y = -2 m) and Wire 2 (y = +2 m)
 const PAR_VD = 0.015 * CSPEED; // equal electron drift speed magnitude in both wires
-const PAR_Q = 6e14 / 3; // equal charge per segment in both wires at meter scale (1/3 per particle with 3x particles)
+const PAR_Q = 1.1e18 / 3; // equal charge per segment in both wires at meter scale (scaled for proton mass M_PROT)
 var par_vd2_signed = PAR_VD;
 
 function build_parallel_wires(vd2_dir) {
@@ -308,7 +308,7 @@ function build_parallel_wires(vd2_dir) {
                 prop_vd: ws.vd,
                 prop_ystart: ws.y0,
                 prop_p: new p(0, ws.y0, 0),
-                prop_mass: M_ELEC,
+                prop_mass: M_PROT,
             },
             {
                 prop_v: new vec(ws.vd, 0, 0),
@@ -532,8 +532,8 @@ const TENSION_N = 60; // segments along the wire
 const TENSION_L = 8; // m, initial unstretched wire length
 const TENSION_DX = TENSION_L / TENSION_N;
 const TENSION_VD = 0.045 * CSPEED; // electron drift speed (+x) along wire
-const TENSION_Q = 3.5e13; // charge per wire segment
-const TENSION_PMASS = TENSION_Q * M_ELEC; // mass per particle in segment
+const TENSION_Q = 6.4e16; // charge per wire segment (scaled for proton mass M_PROT)
+const TENSION_PMASS = TENSION_Q * M_PROT; // mass per particle in segment
 
 function pre_wire_tension() {
     // Straight wire along x-axis where all segments interact pairwise via calc_forces():

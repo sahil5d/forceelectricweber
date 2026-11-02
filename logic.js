@@ -49,8 +49,8 @@ function logic_pre() {
         particles[0].prop_fy0 = M_ELEC * particles[0].prop_a.y;
         particles[0].prop_fy_mid = particles[0].prop_fy0;
         if (particles[0].prop_is_par_lead) {
-            particles[0].prop_fy_atom0 = M_ELEC * (particles[0].prop_a.y + particles[1].prop_a.y);
-            particles[2].prop_fy_atom0 = M_ELEC * (particles[2].prop_a.y + particles[3].prop_a.y);
+            particles[0].prop_fy_atom0 = M_PROT * (particles[0].prop_a.y + particles[1].prop_a.y);
+            particles[2].prop_fy_atom0 = M_PROT * (particles[2].prop_a.y + particles[3].prop_a.y);
         }
         if (particles[0].prop_istension) {
             var f_mid0 = 0;
