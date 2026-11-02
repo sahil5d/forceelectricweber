@@ -1,0 +1,237 @@
+<html>
+
+<head>
+  <title>Force_electric_Weber</title>
+  <link rel="stylesheet" href="./style.css">
+
+  <!-- microsoft analytics -->
+  <script type="text/javascript">
+    (function (c, l, a, r, i, t, y) {
+      c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments) };
+      t = l.createElement(r); t.async = 1; t.src = "https://www.clarity.ms/tag/" + i;
+      y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
+    })(window, document, "clarity", "script", "z71vd83okz");
+  </script>
+</head>
+
+<body>
+  <div id="thescene"></div>
+
+  <div id="thetitle">
+    <div class="panel-title">Force_electric_Weber</div>
+    <div class="panel-subtitle">F = (kq₁q₂/r²)(1 − vᵣ²/2c² + v⊥²/c² + r aᵣ/c²)</div>
+    <div class="panel-link">
+      <a href="https://github.com/sahil5d/forceelectricweber" target="_blank" rel="noopener">Code</a>
+    </div>
+  </div>
+
+  <div id="theinfo">
+    <div class="legend">
+      <div><span class="dot dot-elec"></span> electrons</div>
+      <div><span class="dot dot-prot"></span> protons</div>
+    </div>
+  </div>
+
+  <div id="theconfigs">
+    <!-- <div class="menu-label">Starting Configuration</div> -->
+    <button class="config-btn active" data-config="wire">1. DC Line</button>
+    <button class="config-btn" data-config="coil">2. DC Coil</button>
+    <button class="config-btn" data-config="ac_wire">3. AC Line Induction</button>
+    <button class="config-btn" data-config="coil_turnon">4. Coil Startup Induction</button>
+    <button class="config-btn" data-config="transformer">5. 3:1 Transformer</button>
+    <button class="config-btn" data-config="parallel_wires">6. Parallel Wires</button>
+    <button class="config-btn" data-config="antiparallel_wires">7. Parallel Wires (Opp Current)</button>
+    <!-- <button class="config-btn" data-config="spherical_shell">8. Hollow Sphere (F_shell)</button> -->
+    <button class="config-btn" data-config="magnets_attract">8. Bar Magnets (Attract)</button>
+    <button class="config-btn" data-config="magnets_repel">9. Bar Magnets (Repel &amp; Rotate)</button>
+    <button class="config-btn" data-config="magnet_coil">10. Bar Magnet Induction</button>
+    <button class="config-btn" data-config="wire_magnet">11. DC Wire Tilts Bar Magnet</button>
+    <!-- <button class="config-btn" data-config="spherical_shell">12. Hollow Sphere (F_shell)</button> -->
+
+    <div class="btn-row">
+      <button id="btn-start">Start</button>
+      <button id="btn-pause" disabled>Pause</button>
+    </div>
+  </div>
+
+  <div id="thehud">
+    <!-- <div class="panel-title">Info</div> -->
+    <div id="hud-desc"></div>
+    <div id="hud-status">Ready — Step 0 / 2000</div>
+    <div id="hud-log"><span class="hud-placeholder">Select a configuration and click Start...</span></div>
+  </div>
+
+
+  <script src="./js_three.min.js"></script>
+  <script src="./js_threeorbitcontrols.js"></script>
+
+  <script src="./lib.js"></script>
+  <script src="./configs_pre.js"></script>
+  <script src="./configs_post.js"></script>
+
+  <script src="./calc.js"></script>
+  <script src="./calc_forces.js"></script>
+
+  <script src="./logic.js"></script>
+
+
+  <!-- SCENE SETUP -->
+  <script>
+    var scene;
+    var camera;
+    var renderer;
+    var controls;
+
+    function setup() {
+      scene = new THREE.Scene();
+      // var scene_height = window.innerHeight * 0.8;
+      var scene_height = window.innerHeight * 1;
+
+      camera = new THREE.PerspectiveCamera(
+        35,
+        window.innerWidth / scene_height,
+        // 0.1 * 10 ** -11,
+        // 1000 * 10 ** -11
+        0.1,
+        1000
+      );
+
+      // camera.position.set(0, 0, 6 * BOHR_X);
+      camera.position.set(0, 0, 6);
+      camera.lookAt(new THREE.Vector3(0, 0, 0));
+
+      renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, scene_height);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+
+      // call controls.update() after a manual change to the camera
+      controls.update();
+
+      document.querySelector("#thescene").appendChild(renderer.domElement);
+
+
+      window.addEventListener('resize', () => {
+        // scene_height = window.innerHeight * 0.8;
+        scene_height = window.innerHeight * 1;
+
+        camera.aspect = window.innerWidth / scene_height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, scene_height);
+      });
+    }
+
+    setup();
+  </script>
+
+  <!-- RUN VIZ -->
+  <script>
+    const stepsuntilrender = 10;
+    var is_running = false;
+    var desc_el = document.getElementById('hud-desc');
+    var status_el = document.getElementById('hud-status');
+    var log_el = document.getElementById('hud-log');
+    var btn_start = document.getElementById('btn-start');
+    var btn_pause = document.getElementById('btn-pause');
+
+    function reset_and_prepare(config_name) {
+      is_running = false;
+      if (config_name) {
+        current_config = config_name;
+      }
+
+      // Clear Three.js scene objects, dispose GPU resources, and reset buffers
+      while (scene.children.length > 0) {
+        var obj = scene.children[0];
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) obj.material.dispose();
+        scene.remove(obj);
+      }
+      points_nuke = null;
+      points_elec = null;
+
+      // Reset simulation state
+      particles.length = 0;
+      steps = 0;
+      totaltime = 0;
+      stepsmax = 2000;
+
+      hud_clear();
+      desc_el.textContent = config_descriptions[current_config] || '';
+      log_el.innerHTML = '<span class="hud-placeholder">Click Start to run</span>';
+      status_el.textContent = 'Ready — Step 0 / ' + stepsmax;
+      btn_start.textContent = 'Start';
+      btn_pause.textContent = 'Pause';
+      btn_pause.disabled = true;
+
+      logic_pre();
+      renderer.render(scene, camera);
+    }
+
+    function start_simulation() {
+      // If a run already finished or progressed, reset cleanly before running
+      if (steps > 0) {
+        reset_and_prepare(current_config);
+      }
+      hud_clear();
+      log_el.innerHTML = '<span class="hud-placeholder">Running...</span>';
+      is_running = true;
+      btn_start.textContent = 'Restart';
+      btn_pause.textContent = 'Pause';
+      btn_pause.disabled = false;
+      status_el.textContent = 'Running — Step ' + steps + ' / ' + stepsmax;
+    }
+
+    // Setup config menu buttons
+    var config_btns = document.querySelectorAll('.config-btn');
+    config_btns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        config_btns.forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        reset_and_prepare(btn.getAttribute('data-config'));
+      });
+    });
+
+    btn_start.addEventListener('click', function () {
+      start_simulation();
+    });
+
+    btn_pause.addEventListener('click', function () {
+      if (steps === 0 || steps >= stepsmax) return;
+      is_running = !is_running;
+      btn_pause.textContent = is_running ? 'Pause' : 'Resume';
+      status_el.textContent = (is_running ? 'Running' : 'Paused') + ' — Step ' + steps + ' / ' + stepsmax;
+    });
+
+    function animate_loop() {
+      if (is_running) {
+        for (var i = 0; i < stepsuntilrender && steps < stepsmax; i++) {
+          logic_step();
+          steps++;
+        }
+        plotallparticles();
+        status_el.textContent = 'Running — Step ' + steps + ' / ' + stepsmax;
+
+        // >= not just ===, because stepsuntilrender*ninteger might be > stepsmax
+        if (steps >= stepsmax) {
+          is_running = false;
+          status_el.textContent = 'Completed — Step ' + steps + ' / ' + stepsmax;
+          btn_start.textContent = 'Start Again';
+          btn_pause.disabled = true;
+          logic_post();
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate_loop);
+    }
+
+    reset_and_prepare(current_config);
+    requestAnimationFrame(animate_loop);
+  </script>
+
+</body>
+
+</html>
