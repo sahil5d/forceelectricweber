@@ -90,7 +90,7 @@ function pre_wire() {
 
     // Reference line along +x at y = WIRE_D0 showing the initial straight direction
     plotlinesegment(new vec(1, 0, 0), new p(x_start, WIRE_D0, 0), -1.99 * x_start, 0x686260);
-    set_camera(0, 2, 18, 0, 2, 0);
+    set_camera(0, 3, 23, 0, 3, 0);
 }
 
 const N_PER_COIL = 144;
@@ -170,24 +170,24 @@ const COIL_TURNON_N = 108;
 const COIL_TURNON_R = 8; // m, radius of the coil
 const COIL_TURNON_VD = 0.015 * CSPEED; // steady-state electron speed after voltage is turned ON
 const COIL_TURNON_Q = 5e14 / 3; // charge per coil segment at meter scale (1/3 per particle with 3x particles)
-const COIL_TURNON_R0 = 3; // m, initial position (r0, 0, 0) of stationary test electron inside coil
 const COIL_TURNON_STEP = 600; // step at which voltage is turned ON and current ramps up
 const COIL_TURNON_TAU = 100 * 2e-10; // ramp time constant (s) after voltage is turned on
 
 function pre_coil_turnon() {
-    // Lone test electron initially at rest at (COIL_TURNON_R0, 0, 0) inside the 1-loop coil
+    // Lone test electron initially at rest at the same starting position as Config 2 inside the 1-loop coil
+    var x_start = -0.5 * COIL_V0 * (stepsmax * timestep);
     add_particle({
         prop_id: 'elec_test_coil_turnon',
-        // prop_history: [new p(COIL_TURNON_R0, 0, 0)],
-        prop_p: new p(COIL_TURNON_R0, 0, 0),
+        // prop_history: [new p(x_start, 0, 0)],
+        prop_p: new p(x_start, 0, 0),
         prop_charge: -1,
     });
 
     // Circular loop centered at z = 0, initially at rest before voltage turns ON at step COIL_TURNON_STEP
     add_coil_loop(COIL_TURNON_N, COIL_TURNON_R, 0, 0, COIL_TURNON_Q, 'coil_turnon_', { prop_iscoil_turnon: true });
 
-    // Reference line along -y from (COIL_TURNON_R0, 0, 0) showing the tangential (-phi, Lenz's law) induction direction
-    plotlinesegment(new vec(0, -1, 0), new p(COIL_TURNON_R0, 0, 0), 1.5, 0x686260);
+    // Reference line along +y from (x_start, 0, 0) showing the tangential (-phi, Lenz's law) induction direction
+    plotlinesegment(new vec(0, 1, 0), new p(x_start, 0, 0), 1.5, 0x686260);
     set_camera(0, 0, 35, 0, 0, 0);
 }
 
@@ -199,7 +199,7 @@ const TFR_R2 = 6.5; // m, radius of 1-loop secondary coil
 const TFR_DZ = 0.8; // m, axial spacing between primary loops
 const TFR_CYCLES = 2; // number of AC cycles over stepsmax
 const TFR_AMP_PHI1 = (2 * Math.PI) / 24; // angular AC amplitude (rad) of primary coil electrons
-const TFR_Q1 = 8e13 / 3; // charge per primary wire segment at meter scale (1/3 per particle with 3x particles)
+const TFR_Q1 = 6.85e13; // charge per primary wire segment (chosen so 1-loop secondary electron speed is 3x the 3-loop primary speed)
 
 function add_secondary_coil() {
     // Push the lead secondary electron FIRST (prop_iswire: false, index 0)
@@ -339,14 +339,14 @@ function pre_antiparallel_wires() {
     build_parallel_wires(-1);
 }
 
-const MAG_LOOPS = 3;
-const MAG_N_PER_LOOP = 10;
-const MAG_R = 1.4; // m, radius of each bar magnet loop
-const MAG_DZ = 1.05; // m, axial spacing between loops (bar magnet length = 2.1 m)
-const MAG_D0 = 6.26; // m, initial center-to-center distance for attracting bar magnets (Config 8)
+const MAG_LOOPS = 10;
+const MAG_N_PER_LOOP = 24;
+const MAG_R = 0.7; // m, radius of each bar magnet loop
+const MAG_DZ = 2.1 / (MAG_LOOPS - 1); // m, axial spacing between loops (bar magnet length = 2.1 m)
+const MAG_D0 = 7.2; // m, initial center-to-center distance for attracting bar magnets (Config 8)
 const MAG_D0_REPEL = 4.6; // m, closer initial distance for repelling bar magnets (Config 9)
 const MAG_VD = 0.045 * CSPEED; // tangential electron speed around each bar magnet loop
-const MAG_Q = 1.8e15; // charge per bar magnet segment
+const MAG_Q = 5.4e16 / (MAG_LOOPS * MAG_N_PER_LOOP); // charge per bar magnet segment
 const MAG_TILT = (6 * Math.PI) / 180; // 6 deg slight initial misalignment for Config 9
 const MCOIL_VZ = 0.06 * CSPEED; // axial speed (+z) of bar magnet moving through coil in Config 10
 const MCOIL_Z0 = -6.0; // initial center z-position of bar magnet in Config 10
@@ -540,9 +540,9 @@ var config_descriptions = {
     transformer: '• 3-loop AC primary (R1 = 8 m) and 1-loop secondary (R2 = 6.5 m)\n• Direct primary-to-secondary Weber acceleration force\n• Replaces magnetic flux linkage (V2/V1 = N2/N1 = 1/3)',
     parallel_wires: '• Two 120 m wires at y = ±2 m, same-direction currents (|I1| = |I2|)\n• Direct pairwise Weber attraction (both move equally toward y = 0)\n• Replaces wire-to-wire B-field and Ampère force law',
     antiparallel_wires: '• Two 120 m wires at y = ±2 m, opp-direction currents (|I1| = |I2|)\n• Direct pairwise Weber repulsion (both move equally apart)\n• Replaces wire-to-wire B-field and Ampère force law',
-    magnets_attract: '• Two 3-loop bar magnets (R = 1.4 m) at x = ±3.13 m, aligned (N–S)\n• Direct pairwise Weber attraction between circulating Ampèrian loops\n• Replaces magnetic pole / Biot-Savart dipole attraction',
-    magnets_repel: '• Two 3-loop bar magnets at x = ±2.3 m, opp currents (N–N) tilted 6°\n• Direct pairwise Weber torque and repulsion rotates and pushes apart\n• Replaces magnetic dipole torque τ = μ × B and repulsion',
-    magnet_coil: '• 3-loop bar magnet (vz = 0.06c) moving through coil (R = 6.5 m)\n• Direct Weber velocity force (vᵣ²/2c², v⊥²/c²) drives coil current\n• Replaces Faraday moving-magnet flux induction E = −dΦ_B/dt',
-    wire_magnet: '• 3-loop bar magnet at (0, 0, −2.8 m) below DC wire (Ørsted exp)\n• Direct pairwise Weber torque twists magnet to be perp\n• Replaces wire B-field and compass torque τ = μ × B',
+    magnets_attract: '• Two 10-loop bar magnets (R = 0.7 m) at x = ±3.6 m, aligned (N–S)\n• Direct pairwise Weber attraction between circulating Ampèrian loops\n• Replaces magnetic pole / Biot-Savart dipole attraction',
+    magnets_repel: '• Two 10-loop bar magnets at x = ±2.3 m, opp currents (N–N) tilted 6°\n• Direct pairwise Weber torque and repulsion rotates and pushes apart\n• Replaces magnetic dipole torque τ = μ × B and repulsion',
+    magnet_coil: '• 10-loop bar magnet (vz = 0.06c) moving through coil (R = 6.5 m)\n• Direct Weber velocity force (vᵣ²/2c², v⊥²/c²) drives coil current\n• Replaces Faraday moving-magnet flux induction E = −dΦ_B/dt',
+    wire_magnet: '• 10-loop bar magnet at (0, 0, −2.8 m) below DC wire (Ørsted exp)\n• Direct pairwise Weber torque twists magnet to be perp\n• Replaces wire B-field and compass torque τ = μ × B',
     // spherical_shell: '• Stationary electron inside 500-point charged sphere (R = 7 m)\n• Direct Weber acceleration reaction from shell charges\n• Produces F_shell = -(Qq / 3c²R) a'
 };

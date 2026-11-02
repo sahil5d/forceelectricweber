@@ -52,7 +52,7 @@ function step_coil_electron(p_obj, R, vd, ad) {
 
 function calc_each_vel_and_accelnext() {
     for (var i = 0; i < particles.length; i++) {
-        if (!particles[i].prop_iswire) {
+        if (!particles[i].prop_iswire && !particles[i].prop_ismagnet) {
             particles[i].prop_atemp.copy(particles[i].prop_a);
         }
     }

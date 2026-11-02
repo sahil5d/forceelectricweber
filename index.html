@@ -18,11 +18,13 @@
   <div id="thescene"></div>
 
   <div id="thetitle">
-    <div class="panel-title">Force_electric_Weber</div>
-    <div class="panel-subtitle">F = (kq₁q₂/r²)(1 − vᵣ²/2c² + v⊥²/c² + r aᵣ/c²)</div>
-    <div class="panel-link">
-      <a href="https://github.com/sahil5d/forceelectricweber" target="_blank" rel="noopener">Code</a>
+    <div class="panel-header">
+      <div class="panel-title">Force_electric_Weber</div>
+      <div class="panel-link">
+        <a href="https://github.com/sahil5d/forceelectricweber/blob/main/calc_forces.js" target="_blank" rel="noopener">Code</a>
+      </div>
     </div>
+    <div class="panel-subtitle">F = (kq₁q₂/r²)(1 − vᵣ²/2c² + v⊥²/c² + r aᵣ/c²)</div>
   </div>
 
   <div id="theinfo">
@@ -34,18 +36,18 @@
 
   <div id="theconfigs">
     <!-- <div class="menu-label">Starting Configuration</div> -->
-    <button class="config-btn active" data-config="wire">1. DC Line</button>
-    <button class="config-btn" data-config="coil">2. DC Coil</button>
-    <button class="config-btn" data-config="ac_wire">3. AC Line Induction</button>
-    <button class="config-btn" data-config="coil_turnon">4. Coil Startup Induction</button>
-    <button class="config-btn" data-config="transformer">5. 3:1 Transformer</button>
-    <button class="config-btn" data-config="parallel_wires">6. Parallel Wires</button>
-    <button class="config-btn" data-config="antiparallel_wires">7. Parallel Wires (Opp Current)</button>
+    <button class="config-btn active" data-config="wire">1. Line</button>
+    <button class="config-btn" data-config="coil">2. Coil</button>
+    <button class="config-btn" data-config="ac_wire">3. Line AC</button>
+    <button class="config-btn" data-config="coil_turnon">4. Coil Startup</button>
+    <button class="config-btn" data-config="transformer">5. Coil AC (Transformer)</button>
+    <button class="config-btn" data-config="parallel_wires">6. Lines Parallel</button>
+    <button class="config-btn" data-config="antiparallel_wires">7. Lines Parallel (Opp Current)</button>
     <!-- <button class="config-btn" data-config="spherical_shell">8. Hollow Sphere (F_shell)</button> -->
-    <button class="config-btn" data-config="magnets_attract">8. Bar Magnets (Attract)</button>
-    <button class="config-btn" data-config="magnets_repel">9. Bar Magnets (Repel &amp; Rotate)</button>
-    <button class="config-btn" data-config="magnet_coil">10. Bar Magnet Induction</button>
-    <button class="config-btn" data-config="wire_magnet">11. DC Wire Tilts Bar Magnet</button>
+    <button class="config-btn" data-config="magnets_attract">8. Bar Magnets Attract</button>
+    <button class="config-btn" data-config="magnets_repel">9. Bar Magnets Repel</button>
+    <button class="config-btn" data-config="magnet_coil">10. Bar Magnet and Coil (Induction)</button>
+    <button class="config-btn" data-config="wire_magnet">11. Line and Bar Magnet (Compass)</button>
     <!-- <button class="config-btn" data-config="spherical_shell">12. Hollow Sphere (F_shell)</button> -->
 
     <div class="btn-row">
@@ -110,6 +112,7 @@
       controls.update();
 
       document.querySelector("#thescene").appendChild(renderer.domElement);
+      document.getElementById('theconfigs').style.width = document.getElementById('thetitle').offsetWidth + 'px';
 
 
       window.addEventListener('resize', () => {
@@ -119,6 +122,7 @@
         camera.aspect = window.innerWidth / scene_height;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, scene_height);
+        document.getElementById('theconfigs').style.width = document.getElementById('thetitle').offsetWidth + 'px';
       });
     }
 
@@ -228,6 +232,13 @@
       requestAnimationFrame(animate_loop);
     }
 
+    var url_config = new URLSearchParams(window.location.search).get('config');
+    if (url_config && CONFIG_PRE[url_config]) {
+      current_config = url_config;
+      config_btns.forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-config') === current_config);
+      });
+    }
     reset_and_prepare(current_config);
     requestAnimationFrame(animate_loop);
   </script>

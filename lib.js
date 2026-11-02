@@ -18,9 +18,9 @@ const JOULETOEV = 6.241509 * 10 ** 18;
 
 const ZEROALL = new p(0, 0, 0);
 
-const MAX_PARTICLES = 5000;
+const MAX_PARTICLES = 10000;
 // const TRAIL_LEN = 100;
-const ELEC_DRAW_OFFSET = 0.04;
+const ELEC_DRAW_OFFSET = 0.02;
 
 var points_nuke = null;
 var points_elec = null;

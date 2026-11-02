@@ -163,19 +163,10 @@ function post_magnets_attract() {
     var dx1 = m1.x - m1.x0;
     var dx2 = m2.x - m2.x0;
 
-    // Note on why the attracting bar magnets bounce at close range (~step 1390):
-    // There is no hard-body collision code. On each loop (MAG_N_PER_LOOP = 10), protons stay at fixed
-    // angles phi_i while electrons rotate by delta_phi(t) = (vd / R) * t in lockstep on both magnets.
-    // When the inner gap approaches the discrete chord spacing (~0.85 m), like-sign charges (proton-proton
-    // and electron-electron) face head-on across dx while opposite-sign charges (proton-electron) are
-    // diagonally offset by delta_phi(t) at a slightly larger distance. Because bare 1/r^2 Coulomb forces
-    // are (c/vd)^2 ~ 500x stronger than the magnetic (vd/c)^2 Weber terms, this short-range discrete
-    // electrostatic repulsion (-696 N vs +59 N magnetic attraction) elastically bounces the magnets apart.
     hud_log('Magnet 1 F_x Weber:', trim(m1.fx0), 'N | Biot-Savart approx:', trim(-bs.fx2), 'N');
     hud_log('Magnet 2 F_x Weber:', trim(m2.fx0), 'N | Biot-Savart approx:', trim(bs.fx2), 'N');
     hud_log('Diff:', pct_diff(bs.fx2, m2.fx0));
     hud_log('Attraction |Δx1|:', trim(Math.abs(dx1)), 'm | |Δx2|:', trim(Math.abs(dx2)), 'm');
-    hud_log('Note: Close-range bounce is 1/r² repulsion of aligned loop charges');
 }
 
 function post_magnets_repel() {

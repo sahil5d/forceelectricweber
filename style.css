@@ -21,7 +21,7 @@ canvas:focus {
   background: rgba(10, 10, 18, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.18);
   padding: 14px;
-  border-radius: 1px;
+  border-radius: 2px;
   font-size: 12px;
   line-height: 1.5;
   z-index: 10;
@@ -30,24 +30,31 @@ canvas:focus {
 
 #theconfigs {
   position: fixed;
-  top: 16px;
-  right: 16px;
-  width: 255px;
+  top: 102px;
+  left: 16px;
+  width: 324px;
+  box-sizing: border-box;
   background: rgba(10, 10, 18, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.18);
-  padding: 6px;
-  border-radius: 1px;
+  padding: 8px;
+  border-radius: 2px;
   font-size: 12px;
   line-height: 1.5;
   z-index: 10;
   user-select: none;
 }
 
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 11px;
+}
+
 .panel-title {
   padding-left: 1px;
   font-size: 12px;
   font-weight: bold;
-  margin-bottom: 11px;
   color: #fff;
   letter-spacing: 0.5px;
 }
@@ -55,7 +62,6 @@ canvas:focus {
 .panel-subtitle {
   padding-left: 1px;
   font-size: 10.5px;
-  margin-bottom: 8px;
   color: #aaa;
 }
 
@@ -67,11 +73,11 @@ canvas:focus {
   color: #ccc;
   border: 1px solid rgba(255, 255, 255, 0.12);
   padding: 4px 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-family: monospace;
   font-size: 11px;
   cursor: pointer;
-  border-radius: 1px;
+  border-radius: 2px;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 
@@ -103,7 +109,7 @@ canvas:focus {
   font-size: 12px;
   font-weight: bold;
   border: none;
-  border-radius: 1px;
+  border-radius: 2px;
   cursor: pointer;
   letter-spacing: 0.5px;
 }
@@ -119,7 +125,7 @@ canvas:focus {
   font-family: monospace;
   font-size: 12px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 1px;
+  border-radius: 2px;
   cursor: pointer;
 }
 
@@ -163,7 +169,7 @@ canvas:focus {
   background: rgba(10, 10, 18, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.18);
   padding: 12px 14px;
-  border-radius: 1px;
+  border-radius: 2px;
   font-size: 12px;
   line-height: 1.5;
   z-index: 10;
@@ -194,7 +200,7 @@ canvas:focus {
   background: rgba(10, 10, 18, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.18);
   padding: 14px;
-  border-radius: 1px;
+  border-radius: 2px;
   font-size: 12px;
   line-height: 1.55;
   z-index: 10;
