@@ -1,7 +1,21 @@
-// note: what is p
-//     point, pos, or particle.....
-// particle is the {prop_id, prop_p, prop_v, ...}.
-// p is a point is a pos is a {x: , y: , z:}
+// Objects are all built from elementary neutral segments
+//   At runtime, all segments are flattened into the global `particles` array,
+//   so `calc_forces()` and `plotallparticles()` operate directly on particles.
+// Segment (`add_wire_segment`): 1 proton (+q) + 1 electron (-q).
+// Line (straight wire)
+//   `add_dc_wire`, `pre_ac_wire`, `build_parallel_wires`, `pre_wire_tension`
+//   n segments along a line
+//   electrons advance along x and wrap around at the ends in `calc_each_pos()`
+// Coil (circular wire) 
+//   `add_coil`, `add_secondary_coil`)
+//   n segments around a ring of radius R
+//   `set_coil_state()` advances each electron's angle `prop_phi` around the circle
+// Bar magnet
+//   (`add_bar_magnet`, `pre_magnet_coil`)
+//   5x5x9 rectangular prism of 225 small circular coils (`MAG_NU * MAG_NW * MAG_NS`),
+//   with the 2x2x9 = 36 corner coils active in `calc_forces()` and all 225 coils updated
+//   as a single rigid body via `sync_bar_magnet()`
+
 
 // Helper: create a neutral wire/coil segment (1 positive proton/ion +q and 1 negative electron -q)
 function add_wire_segment(id_base, q, shared_opts, elec_opts) {
@@ -39,12 +53,14 @@ function add_dc_wire(n, len, vd, q, id_prefix) {
     }
 }
 
-// Helper: create a circular coil loop of n segments in the xy-plane at height z
-function add_coil_loop(n, R, z, vd, q, id_prefix, extra_shared) {
+// Helper: create a circular coil of n segments in the xy-plane at height z
+function add_coil(n, R, z, vd, q, id_prefix, extra_shared) {
+    var xc = (extra_shared && extra_shared.prop_xc) || 0;
+    var yc = (extra_shared && extra_shared.prop_yc) || 0;
+    var vz = (extra_shared && extra_shared.prop_vz) || 0;
     for (var i = 0; i < n; i++) {
         var phi = (2 * Math.PI * i) / n;
-        var px = R * Math.cos(phi), py = R * Math.sin(phi);
-        var vz = (extra_shared && extra_shared.prop_vz) || 0;
+        var px = xc + R * Math.cos(phi), py = yc + R * Math.sin(phi);
         add_wire_segment(
             id_prefix + (i + 1),
             q,
@@ -112,7 +128,7 @@ function pre_coil() {
     });
 
     // Single circular coil in the xy-plane (z = 0)
-    add_coil_loop(N_PER_COIL, COIL_R, 0, COIL_VD, COIL_Q, 'coil1', { prop_iscoil: true });
+    add_coil(N_PER_COIL, COIL_R, 0, COIL_VD, COIL_Q, 'coil1', { prop_iscoil: true });
 
     // Reference line along +x (y = 0) showing the undeflected straight path
     plotlinesegment(new vec(1, 0, 0), new p(x_start, 0, 0), -2 * x_start, 0x686260);
@@ -184,7 +200,7 @@ function pre_coil_turnon() {
     });
 
     // Circular loop centered at z = 0, initially at rest before voltage turns ON at step COIL_TURNON_STEP
-    add_coil_loop(COIL_TURNON_N, COIL_TURNON_R, 0, 0, COIL_TURNON_Q, 'coil_turnon_', { prop_iscoil_turnon: true });
+    add_coil(COIL_TURNON_N, COIL_TURNON_R, 0, 0, COIL_TURNON_Q, 'coil_turnon_', { prop_iscoil_turnon: true });
 
     // Reference line along +y from (x_start, 0, 0) showing the tangential (-phi, Lenz's law) induction direction
     plotlinesegment(new vec(0, 1, 0), new p(x_start, 0, 0), 1.5, 0x686260);
@@ -339,14 +355,19 @@ function pre_antiparallel_wires() {
     build_parallel_wires(-1);
 }
 
-const MAG_LOOPS = 10;
-const MAG_N_PER_LOOP = 24;
-const MAG_R = 0.7; // m, radius of each bar magnet loop
-const MAG_DZ = 2.1 / (MAG_LOOPS - 1); // m, axial spacing between loops (bar magnet length = 2.1 m)
-const MAG_D0 = 7.2; // m, initial center-to-center distance for attracting bar magnets (Config 8)
+const MAG_NS = 9; // 9 coil layers along the bar magnet's length (dipole axis)
+const MAG_NU = 5; // 5 coils across width of cross-section
+const MAG_NW = 5; // 5 coils across height of cross-section
+const MAG_ACTIVE_COILS = 4 * MAG_NS; // 2x2x9 = 36 corner coils active in force calculations
+const MAG_N_PER_LOOP = 8; // segments per small circular coil
+const MAG_R = 0.09; // m, radius of each small circular coil in the 5x5x9 prism
+const MAG_DS = 2.1 / (MAG_NS - 1); // m, axial spacing between slices (bar magnet length = 2.1 m)
+const MAG_DU = MAG_DS; // m, transverse grid spacing across the 5x5 cross-section
+const MAG_D0 = 6.0; // m, initial center-to-center distance for attracting bar magnets (Config 8)
 const MAG_D0_REPEL = 4.6; // m, closer initial distance for repelling bar magnets (Config 9)
 const MAG_VD = 0.045 * CSPEED; // tangential electron speed around each bar magnet loop
-const MAG_Q = 5.4e16 / (MAG_LOOPS * MAG_N_PER_LOOP); // charge per bar magnet segment
+const MAG_Q = (5.4e16 * (0.7 / MAG_R)) / (MAG_ACTIVE_COILS * MAG_N_PER_LOOP); // charge per active segment (preserves total dipole moment)
+const MAG_PMASS = (5.4e16 * M_ELEC) / (MAG_ACTIVE_COILS * MAG_N_PER_LOOP); // mass per active particle
 const MAG_TILT = (6 * Math.PI) / 180; // 6 deg slight initial misalignment for Config 9
 const MCOIL_VZ = 0.06 * CSPEED; // axial speed (+z) of bar magnet moving through coil in Config 10
 const MCOIL_Z0 = -6.0; // initial center z-position of bar magnet in Config 10
@@ -359,24 +380,40 @@ const OERSTED_Q = 1.15e14; // charge per DC wire segment in Config 11
 
 var mag_states = [];
 
-function for_each_mag_seg(fn) {
-    for (var k = 0; k < MAG_LOOPS; k++) {
-        var s = (k - (MAG_LOOPS - 1) / 2) * MAG_DZ;
-        for (var i = 0; i < MAG_N_PER_LOOP; i++) {
-            fn(k, i, s, (2 * Math.PI * i) / MAG_N_PER_LOOP);
+function for_each_mag_seg(fn, include_visual) {
+    var passes = include_visual ? [true, false] : [true];
+    var coil_idx = 0;
+    for (var pass_active of passes) {
+        for (var ks = 0; ks < MAG_NS; ks++) {
+            var s = (ks - (MAG_NS - 1) / 2) * MAG_DS;
+            for (var ku = 0; ku < MAG_NU; ku++) {
+                var is_corner_u = (ku === 0 || ku === MAG_NU - 1);
+                var uc = (ku - (MAG_NU - 1) / 2) * MAG_DU;
+                for (var kw = 0; kw < MAG_NW; kw++) {
+                    var is_corner = is_corner_u && (kw === 0 || kw === MAG_NW - 1);
+                    if (is_corner !== pass_active) continue;
+                    var wc = (kw - (MAG_NW - 1) / 2) * MAG_DU;
+                    coil_idx++;
+                    for (var i = 0; i < MAG_N_PER_LOOP; i++) {
+                        fn(s, uc, wc, (2 * Math.PI * i) / MAG_N_PER_LOOP, is_corner, coil_idx, i);
+                    }
+                }
+            }
         }
     }
 }
 
-function sync_bar_magnet(mag) {
+function sync_bar_magnet(mag, sync_visual) {
     var cosT = Math.cos(mag.theta), sinT = Math.sin(mag.theta);
     for (var pt of mag.particles) {
         var cosP = Math.cos(pt.prop_phi), sinP = Math.sin(pt.prop_phi);
-        var dx = pt.prop_s * cosT - MAG_R * cosP * sinT;
-        var dy = pt.prop_s * sinT + MAG_R * cosP * cosT;
+        var u = pt.prop_uc + MAG_R * cosP;
+        var w = pt.prop_wc + MAG_R * sinP;
+        var dx = pt.prop_s * cosT - u * sinT;
+        var dy = pt.prop_s * sinT + u * cosT;
         pt.prop_dx = dx;
         pt.prop_dy = dy;
-        pt.prop_p.set(mag.x + dx, mag.y + dy, mag.z + MAG_R * sinP);
+        pt.prop_p.set(mag.x + dx, mag.y + dy, mag.z + w);
         var vrx = mag.vx - mag.omega * dy, vry = mag.vy + mag.omega * dx;
         if (pt.prop_charge > 0) {
             pt.prop_v.set(vrx, vry, 0);
@@ -384,35 +421,59 @@ function sync_bar_magnet(mag) {
             pt.prop_v.set(vrx + mag.vd * sinP * sinT, vry - mag.vd * sinP * cosT, mag.vd * cosP);
         }
     }
+    if (sync_visual) {
+        var phi_shift = mag.phi_shift;
+        for (var vpt of mag.visual_particles) {
+            var phi = vpt.prop_charge < 0 ? vpt.prop_phi + phi_shift : vpt.prop_phi;
+            var u_v = vpt.prop_uc + MAG_R * Math.cos(phi);
+            var w_v = vpt.prop_wc + MAG_R * Math.sin(phi);
+            vpt.prop_p.set(
+                mag.x + vpt.prop_s * cosT - u_v * sinT,
+                mag.y + vpt.prop_s * sinT + u_v * cosT,
+                mag.z + w_v
+            );
+        }
+    }
 }
 
 function add_bar_magnet(id, x0, theta0, vd, z0) {
     z0 = z0 || 0;
-    var pmass = MAG_Q * M_ELEC;
+    var pmass = MAG_PMASS;
     var mag = {
         id: id, x0: x0, theta0: theta0,
         x: x0, y: 0, z: z0, vx: 0, vy: 0, ax: 0, ay: 0, ax_old: 0, ay_old: 0,
-        theta: theta0, omega: 0, alpha: 0, alpha_old: 0,
+        theta: theta0, omega: 0, alpha: 0, alpha_old: 0, phi_shift: 0,
         vd: vd, fx: 0, fy: 0, tau: 0, fx0: 0, fy0: 0, tau0: 0,
-        mass: 0, inertia: 0, particles: [],
+        mass: 0, inertia: 0, particles: [], visual_particles: [],
     };
-    for_each_mag_seg(function (k, i, s, phi) {
-        mag.mass += 2 * pmass;
-        mag.inertia += 2 * pmass * (s * s + (MAG_R * Math.cos(phi)) ** 2);
+    for_each_mag_seg(function (s, uc, wc, phi, is_active, coil_idx, i) {
+        if (is_active) {
+            mag.mass += 2 * pmass;
+            mag.inertia += 2 * pmass * (s * s + (uc + MAG_R * Math.cos(phi)) ** 2);
+        }
         for (var sgn of [1, -1]) {
-            mag.particles.push(add_particle({
-                prop_id: 'mag' + id + '_l' + (k + 1) + (sgn > 0 ? '_prot' : '_elec') + (i + 1),
+            var pt = add_particle({
+                prop_id: 'mag' + id + '_c' + coil_idx + (sgn > 0 ? '_prot' : '_elec') + (i + 1),
                 prop_group: 'mag' + id,
                 prop_ismagnet: true,
+                prop_iswire: !is_active,
+                prop_visual_only: !is_active,
                 prop_mag_id: id,
                 prop_s: s,
+                prop_uc: uc,
+                prop_wc: wc,
                 prop_phi: phi,
                 prop_charge: sgn * MAG_Q,
                 prop_mass: pmass,
-            }));
+            });
+            if (is_active) {
+                mag.particles.push(pt);
+            } else {
+                mag.visual_particles.push(pt);
+            }
         }
-    });
-    sync_bar_magnet(mag);
+    }, true);
+    sync_bar_magnet(mag, true);
     mag_states.push(mag);
 
     // Grey reference lines showing initial axis and perpendicular axis at each bar magnet center
@@ -422,7 +483,6 @@ function add_bar_magnet(id, x0, theta0, vd, z0) {
 }
 
 function build_bar_magnets(vd2_dir, tilt_rad, d0) {
-    mag_states = [];
     add_bar_magnet(1, -d0 / 2, tilt_rad, MAG_VD);
     add_bar_magnet(2, d0 / 2, tilt_rad, vd2_dir * MAG_VD);
     set_camera(0, -10, 24, 0, 0, 0);
@@ -437,26 +497,28 @@ function pre_magnets_repel() {
 }
 
 function pre_magnet_coil() {
-    mag_states = [];
     // 1) 1-loop conducting secondary coil in the xy-plane (z = 0, radius TFR_R2)
     add_secondary_coil();
 
-    // 2) Bar magnet (MAG_LOOPS coaxial circular loops of radius MAG_R) moving along +z through the coil
-    for (var k = 0; k < MAG_LOOPS; k++) {
-        var s = (k - (MAG_LOOPS - 1) / 2) * MAG_DZ;
-        add_coil_loop(MAG_N_PER_LOOP, MAG_R, MCOIL_Z0 + s, MAG_VD, MAG_Q, 'mcoil_l' + (k + 1) + '_', {
-            prop_iscoil: true,
-            prop_vz: MCOIL_VZ,
-        });
-    }
+    // 2) 5x5x9 bar magnet moving along +z through the coil (36 corner coils active first, 189 visual coils second)
+    for_each_mag_seg(function (s, uc, wc, phi, is_active, coil_idx, i) {
+        if (i === 0) {
+            add_coil(MAG_N_PER_LOOP, MAG_R, MCOIL_Z0 + s, MAG_VD, MAG_Q, 'mcoil_c' + coil_idx + '_', {
+                prop_iscoil: true,
+                prop_visual_only: !is_active,
+                prop_xc: uc,
+                prop_yc: wc,
+                prop_vz: MCOIL_VZ,
+            });
+        }
+    }, true);
 
     // Reference line along the z-axis through the center of the coil showing the bar magnet's path
     plotlinesegment(new vec(0, 0, 1), new p(0, 0, MCOIL_Z0 - 1.5), 8, 0x686260);
-    set_camera(0, -45, 5, 0, 0, -1.5);
+    set_camera(20, 0, 20, 0, 0, 0);
 }
 
 function pre_wire_magnet() {
-    mag_states = [];
     // 1) Bar magnet on the z-axis at (0, 0, OERSTED_Z0) with z < 0, initially parallel to the wire (theta0 = 0 along x-axis)
     add_bar_magnet(1, 0, 0, MAG_VD, OERSTED_Z0);
 
@@ -464,6 +526,47 @@ function pre_wire_magnet() {
     add_dc_wire(OERSTED_N, OERSTED_L, OERSTED_VD, OERSTED_Q, 'oersted');
 
     set_camera(0, 15, 15, 0, 0, 0);
+}
+
+const TENSION_N = 60; // segments along the wire
+const TENSION_L = 8; // m, initial unstretched wire length
+const TENSION_DX = TENSION_L / TENSION_N;
+const TENSION_VD = 0.045 * CSPEED; // electron drift speed (+x) along wire
+const TENSION_Q = 3.5e13; // charge per wire segment
+const TENSION_PMASS = TENSION_Q * M_ELEC; // mass per particle in segment
+
+function pre_wire_tension() {
+    // Straight wire along x-axis where all segments interact pairwise via calc_forces():
+    // Each segment k has its own prop_group ('tseg' + k) and prop_iswire: false,
+    // so same-segment proton & electron skip each other while all distinct segments repel longitudinally
+    for (var k = 1; k <= TENSION_N; k++) {
+        var x0 = -TENSION_L / 2 + (k - 0.5) * TENSION_DX;
+        var lead_idx = 2 * (k - 1);
+        add_wire_segment(
+            'tseg' + k,
+            TENSION_Q,
+            {
+                prop_group: 'tseg' + k,
+                prop_iswire: false,
+                prop_istension: true,
+                prop_lead_idx: lead_idx,
+                prop_x0: x0,
+                prop_vd: TENSION_VD,
+                prop_p: new p(x0, 0, 0),
+                prop_v: new vec(0, 0, 0),
+                prop_mass: TENSION_PMASS,
+            },
+            {
+                prop_v: new vec(TENSION_VD, 0, 0),
+            }
+        );
+    }
+
+    // Grey reference line and end ticks at x = +-TENSION_L/2 showing initial unstretched wire length
+    plotlinesegment(new vec(1, 0, 0), new p(-TENSION_L / 2, 0, 0), TENSION_L, 0x686260);
+    plotlinesegment(new vec(0, 1, 0), new p(-TENSION_L / 2, -0.6, 0), 1.2, 0x686260);
+    plotlinesegment(new vec(0, 1, 0), new p(TENSION_L / 2, -0.6, 0), 1.2, 0x686260);
+    set_camera(0, 0, 32, 0, 0, 0);
 }
 
 /*
@@ -529,6 +632,7 @@ var CONFIG_PRE = {
     magnets_repel: pre_magnets_repel,
     magnet_coil: pre_magnet_coil,
     wire_magnet: pre_wire_magnet,
+    wire_tension: pre_wire_tension,
     // spherical_shell: pre_spherical_shell
 };
 
@@ -540,9 +644,10 @@ var config_descriptions = {
     transformer: '• 3-loop AC primary (R1 = 8 m) and 1-loop secondary (R2 = 6.5 m)\n• Direct primary-to-secondary Weber acceleration force\n• Replaces magnetic flux linkage (V2/V1 = N2/N1 = 1/3)',
     parallel_wires: '• Two 120 m wires at y = ±2 m, same-direction currents (|I1| = |I2|)\n• Direct pairwise Weber attraction (both move equally toward y = 0)\n• Replaces wire-to-wire B-field and Ampère force law',
     antiparallel_wires: '• Two 120 m wires at y = ±2 m, opp-direction currents (|I1| = |I2|)\n• Direct pairwise Weber repulsion (both move equally apart)\n• Replaces wire-to-wire B-field and Ampère force law',
-    magnets_attract: '• Two 10-loop bar magnets (R = 0.7 m) at x = ±3.6 m, aligned (N–S)\n• Direct pairwise Weber attraction between circulating Ampèrian loops\n• Replaces magnetic pole / Biot-Savart dipole attraction',
-    magnets_repel: '• Two 10-loop bar magnets at x = ±2.3 m, opp currents (N–N) tilted 6°\n• Direct pairwise Weber torque and repulsion rotates and pushes apart\n• Replaces magnetic dipole torque τ = μ × B and repulsion',
-    magnet_coil: '• 10-loop bar magnet (vz = 0.06c) moving through coil (R = 6.5 m)\n• Direct Weber velocity force (vᵣ²/2c², v⊥²/c²) drives coil current\n• Replaces Faraday moving-magnet flux induction E = −dΦ_B/dt',
-    wire_magnet: '• 10-loop bar magnet at (0, 0, −2.8 m) below DC wire (Ørsted exp)\n• Direct pairwise Weber torque twists magnet to be perp\n• Replaces wire B-field and compass torque τ = μ × B',
+    magnets_attract: '• Two 5×5×9-coil bar magnets at x = ±3.0 m, aligned (N–S)\n• Direct pairwise Weber attraction between circulating Ampèrian loops\n• Replaces magnetic pole / Biot-Savart dipole attraction',
+    magnets_repel: '• Two 5×5×9-coil bar magnets at x = ±2.3 m, opp currents (N–N) tilted 6°\n• Direct pairwise Weber torque and repulsion rotates and pushes apart\n• Replaces magnetic dipole torque τ = μ × B and repulsion',
+    magnet_coil: '• 5×5×9-coil bar magnet (vz = 0.06c) moving through coil (R = 6.5 m)\n• Direct Weber velocity force (vᵣ²/2c², v⊥²/c²) drives coil current\n• Replaces Faraday moving-magnet flux induction E = −dΦ_B/dt',
+    wire_magnet: '• 5×5×9-coil bar magnet at (0, 0, −2.8 m) below DC wire (Ørsted exp)\n• Direct pairwise Weber torque twists magnet to be perp\n• Replaces wire B-field and compass torque τ = μ × B',
+    wire_tension: '• 60-segment DC wire (L = 8 m) with inter-segment Weber forces\n• Collinear segments repel via −vᵣ²/2c², stretching & exploding wire\n• Ampère–Weber longitudinal tension (Lorentz I dl × B predicts 0)',
     // spherical_shell: '• Stationary electron inside 500-point charged sphere (R = 7 m)\n• Direct Weber acceleration reaction from shell charges\n• Produces F_shell = -(Qq / 3c²R) a'
 };

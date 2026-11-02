@@ -19,7 +19,7 @@ Note: careful with scalar, vectors, dots, doubledots. See code in `calc_forces()
 2. Wire (coil) and lone electron deflection
 3. Wire (line, AC) and lone electron induction
 4. Coil Startup
-5. Coil AC (Transformer)
+5. Coils AC (Transformer)
 6. Wires parallel attraction
 7. Wires parallel opp current repulsion
 8. Bar magnets attraction

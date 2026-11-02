@@ -34,8 +34,8 @@ function tangential_comp(v, phi) {
 
 function set_coil_state(p_obj, R, phi, vd, ad) {
     p_obj.prop_phi = phi;
-    p_obj.prop_p.x = R * Math.cos(phi);
-    p_obj.prop_p.y = R * Math.sin(phi);
+    p_obj.prop_p.x = (p_obj.prop_xc || 0) + R * Math.cos(phi);
+    p_obj.prop_p.y = (p_obj.prop_yc || 0) + R * Math.sin(phi);
     p_obj.prop_v.x = -vd * Math.sin(phi);
     p_obj.prop_v.y = vd * Math.cos(phi);
     if (ad !== undefined) {
@@ -75,6 +75,19 @@ function calc_each_vel_and_accelnext() {
     for (var i = 0; i < particles.length; i++) {
         var p_i = particles[i];
         if (p_i.prop_iswire || p_i.prop_ismagnet) {
+            continue;
+        }
+        if (p_i.prop_istension) {
+            var t_idx = p_i.prop_lead_idx;
+            if (i === t_idx) {
+                var ax_prev = 0.5 * (particles[t_idx].prop_atemp.x + particles[t_idx + 1].prop_atemp.x);
+                var ax_next = 0.5 * (particles[t_idx].prop_anext.x + particles[t_idx + 1].prop_anext.x);
+                var vx_new = particles[t_idx].prop_v.x + 0.5 * (ax_prev + ax_next) * timestep;
+                particles[t_idx].prop_v.set(vx_new, 0, 0);
+                particles[t_idx + 1].prop_v.set(vx_new + particles[t_idx].prop_vd, 0, 0);
+                particles[t_idx].prop_anext.set(ax_next, 0, 0);
+                particles[t_idx + 1].prop_anext.set(ax_next, 0, 0);
+            }
             continue;
         }
         if (p_i.prop_is_par_lead) {
@@ -117,9 +130,11 @@ function calc_each_pos() {
         mag.x += mag.vx * timestep + 0.5 * mag.ax * (timestep ** 2);
         mag.y += mag.vy * timestep + 0.5 * mag.ay * (timestep ** 2);
         mag.theta += mag.omega * timestep + 0.5 * mag.alpha * (timestep ** 2);
+        var dphi = (mag.vd / MAG_R) * timestep;
+        mag.phi_shift += dphi;
         for (var pt of mag.particles) {
             if (pt.prop_charge < 0) {
-                pt.prop_phi += (mag.vd / MAG_R) * timestep;
+                pt.prop_phi += dphi;
             }
         }
         sync_bar_magnet(mag);
@@ -128,6 +143,17 @@ function calc_each_pos() {
     for (var i = 0; i < particles.length; i++) {
         var p_i = particles[i];
         if (p_i.prop_ismagnet) {
+            continue;
+        }
+
+        if (p_i.prop_istension) {
+            var t_idx = p_i.prop_lead_idx;
+            if (i === t_idx) {
+                var ax_curr = 0.5 * (particles[t_idx].prop_a.x + particles[t_idx + 1].prop_a.x);
+                var x_new = particles[t_idx].prop_p.x + particles[t_idx].prop_v.x * timestep + 0.5 * ax_curr * (timestep ** 2);
+                particles[t_idx].prop_p.x = x_new;
+                particles[t_idx + 1].prop_p.x = x_new;
+            }
             continue;
         }
 

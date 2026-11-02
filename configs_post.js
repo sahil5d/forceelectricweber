@@ -123,12 +123,13 @@ function calc_mag_biotsavart(d0, theta1, vd1, theta2, vd2) {
     var build_segs = function (x_cm, theta, vd) {
         var out = [];
         var cosT = Math.cos(theta), sinT = Math.sin(theta);
-        for_each_mag_seg(function (k, i, s, phi) {
+        for_each_mag_seg(function (s, uc, wc, phi) {
             var cosP = Math.cos(phi), sinP = Math.sin(phi);
-            var dx = s * cosT - MAG_R * cosP * sinT;
-            var dy = s * sinT + MAG_R * cosP * cosT;
+            var u = uc + MAG_R * cosP, w = wc + MAG_R * sinP;
+            var dx = s * cosT - u * sinT;
+            var dy = s * sinT + u * cosT;
             out.push({
-                x: x_cm + dx, y: dy, z: MAG_R * sinP, dx: dx, dy: dy,
+                x: x_cm + dx, y: dy, z: w, dx: dx, dy: dy,
                 qvx: -MAG_Q * vd * sinP * sinT,
                 qvy: MAG_Q * vd * sinP * cosT,
                 qvz: -MAG_Q * vd * cosP,
@@ -185,15 +186,15 @@ function post_magnets_repel() {
 }
 
 function post_magnet_coil() {
-    // Analytical Faraday/Lenz law tangential force on stationary coil (radius TFR_R2) from bar magnet moving at MCOIL_VZ:
-    // F_phi = (3 * KEE * MAG_Q * MAG_R * TFR_R2 * MCOIL_VZ * MAG_VD / c^2) * sum_{k, i} z_k * sin^2(phi_i) / r_{ki}^5
+    // Analytical Faraday/Lenz law tangential force on stationary coil (radius TFR_R2) from 5x5x9 bar magnet moving at MCOIL_VZ
     var sum_mag = 0;
-    for_each_mag_seg(function (k, i, s, phi) {
-        var zk = MCOIL_Z0 + s;
-        var dist = Math.sqrt(MAG_R ** 2 + TFR_R2 ** 2 - 2 * MAG_R * TFR_R2 * Math.cos(phi) + zk ** 2);
-        sum_mag += zk * (Math.sin(phi) ** 2) / (dist ** 5);
+    for_each_mag_seg(function (s, uc, wc, phi) {
+        var xp = uc + MAG_R * Math.cos(phi), yp = wc + MAG_R * Math.sin(phi), zk = MCOIL_Z0 + s;
+        var dx = TFR_R2 - xp, dy = -yp;
+        var dist = Math.sqrt(dx * dx + dy * dy + zk * zk);
+        sum_mag += zk * yp * (dx * Math.sin(phi) + yp * Math.cos(phi)) / (dist ** 5);
     });
-    var fphi_lab = (3 * KEE * MAG_Q * MAG_R * TFR_R2 * MCOIL_VZ * MAG_VD / CSQUARED) * sum_mag;
+    var fphi_lab = (3 * KEE * MAG_Q * MCOIL_VZ * MAG_VD / CSQUARED) * sum_mag;
     var fphi_sim = particles[0].prop_fy0;
     var emf_sim = 2 * Math.PI * TFR_R2 * (-fphi_sim) * JOULETOEV;
     var emf_lab = 2 * Math.PI * TFR_R2 * (-fphi_lab) * JOULETOEV;
@@ -206,24 +207,59 @@ function post_magnet_coil() {
 
 function post_wire_magnet() {
     var m1 = mag_states[0];
-    // Analytical Biot-Savart torque from straight DC wire on x-axis (z = 0) onto bar magnet at (0, 0, OERSTED_Z0):
+    // Analytical Biot-Savart / Ampère torque from finite DC wire of length OERSTED_L on x-axis (z = 0) onto bar magnet at (0, 0, OERSTED_Z0):
     var b_fac = (2 * KEE * OERSTED_N * OERSTED_Q * OERSTED_VD) / (CSQUARED * OERSTED_L);
+    var halfL = OERSTED_L / 2;
     var tau_bs = 0;
-    for_each_mag_seg(function (k, i, s, phi) {
-        var yp = MAG_R * Math.cos(phi), dz = OERSTED_Z0 + MAG_R * Math.sin(phi);
+    for_each_mag_seg(function (s, uc, wc, phi) {
+        var yp = uc + MAG_R * Math.cos(phi), dz = OERSTED_Z0 + wc + MAG_R * Math.sin(phi);
         var rho2 = yp * yp + dz * dz;
-        var by = b_fac * dz / rho2;
-        var bz = -b_fac * yp / rho2;
+        var xp_pos = halfL - s, xp_neg = halfL + s;
+        var r_pos = Math.sqrt(xp_pos * xp_pos + rho2), r_neg = Math.sqrt(xp_neg * xp_neg + rho2);
+        var geom = 0.5 * ((xp_pos / r_pos) ** 3 + (xp_neg / r_neg) ** 3);
+        var by = b_fac * geom * dz / rho2;
+        var bz = -b_fac * geom * yp / rho2;
         var qvy = MAG_Q * MAG_VD * Math.sin(phi);
         var qvz = -MAG_Q * MAG_VD * Math.cos(phi);
         var dfx = qvy * bz - qvz * by;
-        tau_bs += -yp * dfx;
+        var dfy = 0.5 * b_fac * yp * (qvy * yp + qvz * dz) * (1 / (r_neg ** 3) - 1 / (r_pos ** 3));
+        tau_bs += s * dfy - yp * dfx;
     });
     var dtheta_deg = ((m1.theta - m1.theta0) * 180) / Math.PI;
 
     hud_log('Torque τ_z Weber:', trim(m1.tau0), 'N·m | Biot-Savart approx:', trim(tau_bs), 'N·m');
     hud_log('Diff:', pct_diff(tau_bs, m1.tau0));
     hud_log('Magnet Rotation Δθ:', trim(dtheta_deg), 'deg (twists toward 90° perp to wire)');
+}
+
+function post_wire_tension() {
+    // Analytical Ampère–Weber longitudinal repulsion between collinear wire segments:
+    // F_x(i <- j) = (KEE * q^2 * vd^2) / (c^2 * (x_i - x_j)^2) = (mu0 / 4pi) * (I * dx)^2 / (x_i - x_j)^2
+    // Midpoint axial tension T_mid is the sum of longitudinal repulsion between the left half (x < 0) and right half (x > 0):
+    var f_mid_ana = 0;
+    var f_end_ana = 0;
+    var x_end0 = -TENSION_L / 2 + (TENSION_N - 0.5) * TENSION_DX;
+    for (var i = 0; i < TENSION_N; i++) {
+        var xi = -TENSION_L / 2 + (i + 0.5) * TENSION_DX;
+        if (i < TENSION_N - 1) {
+            f_end_ana += (KEE * (TENSION_Q ** 2) * (TENSION_VD ** 2)) / (CSQUARED * ((x_end0 - xi) ** 2));
+        }
+        if (i >= TENSION_N / 2) {
+            for (var j = 0; j < TENSION_N / 2; j++) {
+                var xj = -TENSION_L / 2 + (j + 0.5) * TENSION_DX;
+                f_mid_ana += (KEE * (TENSION_Q ** 2) * (TENSION_VD ** 2)) / (CSQUARED * ((xi - xj) ** 2));
+            }
+        }
+    }
+    var f_mid_sim = particles[0].prop_f_mid0;
+    var f_end_sim = particles[0].prop_f_end0;
+    var x_last = particles[2 * (TENSION_N - 1)].prop_p.x;
+    var l_final = 2 * x_last;
+
+    hud_log('Midpoint Tension Weber:', trim(f_mid_sim), 'N | Ampère approx:', trim(f_mid_ana), 'N');
+    hud_log('End Segment F_x Weber:', trim(f_end_sim), 'N | Ampère approx:', trim(f_end_ana), 'N');
+    hud_log('Diff:', pct_diff(f_mid_ana, f_mid_sim), '(Lorentz I dl × B predicts 0 N)');
+    hud_log('Wire Length:', TENSION_L + ' m →', trim(l_final), 'm | End Δx:', trim(x_last - x_end0), 'm');
 }
 
 /*
@@ -256,5 +292,6 @@ var CONFIG_POST = {
     magnets_repel: post_magnets_repel,
     magnet_coil: post_magnet_coil,
     wire_magnet: post_wire_magnet,
+    wire_tension: post_wire_tension,
     // spherical_shell: post_spherical_shell
 };

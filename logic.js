@@ -1,11 +1,6 @@
-var totaltime = 0;
-
-var steps = 0;
+var totaltime;
+var steps;
 var stepsmax;
-// stepsmax = 1000;
-// stepsmax = 1e6;
-// stepsmax = 5e4;
-stepsmax = 2000;
 
 const particles = [];
 
@@ -17,8 +12,19 @@ timestep = 2e-10;
 
 var current_config = 'wire';
 
-function logic_pre() {
+function reset_sim_state() {
+    particles.length = 0;
     mag_states.length = 0;
+    steps = 0;
+    totaltime = 0;
+    // stepsmax = 1000;
+    // stepsmax = 1e6;
+    // stepsmax = 5e4;
+    stepsmax = 2000;
+}
+
+function logic_pre() {
+    reset_sim_state();
     if (CONFIG_PRE[current_config]) {
         CONFIG_PRE[current_config]();
     }
@@ -46,6 +52,14 @@ function logic_pre() {
             particles[0].prop_fy_atom0 = M_ELEC * (particles[0].prop_a.y + particles[1].prop_a.y);
             particles[2].prop_fy_atom0 = M_ELEC * (particles[2].prop_a.y + particles[3].prop_a.y);
         }
+        if (particles[0].prop_istension) {
+            var f_mid0 = 0;
+            for (var ts = TENSION_N / 2; ts < TENSION_N; ts++) {
+                f_mid0 += particles[2 * ts].prop_f.x + particles[2 * ts + 1].prop_f.x;
+            }
+            particles[0].prop_f_mid0 = f_mid0;
+            particles[0].prop_f_end0 = particles[2 * (TENSION_N - 1)].prop_f.x + particles[2 * (TENSION_N - 1) + 1].prop_f.x;
+        }
     }
 
     for (var m = 0; m < mag_states.length; m++) {
@@ -72,13 +86,6 @@ function logic_step() {
 
     // recalc forces
     calc_forces();
-
-    // if (minr < 5e-14) {
-    //     hud_log('WITHIN BOHRX/1000', minr);
-    if (minr < 1e-3) {
-        hud_log('WITHIN 1e-3 m', minr);
-        stepsmax = steps + 1;
-    }
 
     totaltime += timestep;
 

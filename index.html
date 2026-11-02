@@ -40,7 +40,7 @@
     <button class="config-btn" data-config="coil">2. Coil</button>
     <button class="config-btn" data-config="ac_wire">3. Line AC</button>
     <button class="config-btn" data-config="coil_turnon">4. Coil Startup</button>
-    <button class="config-btn" data-config="transformer">5. Coil AC (Transformer)</button>
+    <button class="config-btn" data-config="transformer">5. Coils AC (Transformer)</button>
     <button class="config-btn" data-config="parallel_wires">6. Lines Parallel</button>
     <button class="config-btn" data-config="antiparallel_wires">7. Lines Parallel (Opp Current)</button>
     <!-- <button class="config-btn" data-config="spherical_shell">8. Hollow Sphere (F_shell)</button> -->
@@ -48,7 +48,8 @@
     <button class="config-btn" data-config="magnets_repel">9. Bar Magnets Repel</button>
     <button class="config-btn" data-config="magnet_coil">10. Bar Magnet and Coil (Induction)</button>
     <button class="config-btn" data-config="wire_magnet">11. Line and Bar Magnet (Compass)</button>
-    <!-- <button class="config-btn" data-config="spherical_shell">12. Hollow Sphere (F_shell)</button> -->
+    <button class="config-btn" data-config="wire_tension">12. Line Tension (Exploding Wire)</button>
+    <!-- <button class="config-btn" data-config="spherical_shell">13. Hollow Sphere (F_shell)</button> -->
 
     <div class="btn-row">
       <button id="btn-start">Start</button>
@@ -155,11 +156,7 @@
       points_nuke = null;
       points_elec = null;
 
-      // Reset simulation state
-      particles.length = 0;
-      steps = 0;
-      totaltime = 0;
-      stepsmax = 2000;
+      logic_pre();
 
       hud_clear();
       desc_el.textContent = config_descriptions[current_config] || '';
@@ -169,7 +166,6 @@
       btn_pause.textContent = 'Pause';
       btn_pause.disabled = true;
 
-      logic_pre();
       renderer.render(scene, camera);
     }
 

@@ -1,3 +1,8 @@
+// note: what is p
+//     point, pos, or particle.....
+// particle is the {prop_id, prop_p, prop_v, ...}.
+// p is a point is a pos is a {x: , y: , z:}
+
 const p = THREE.Vector3;
 const vec = THREE.Vector3;
 
@@ -47,7 +52,7 @@ function add_particle(opts) {
     if (opts.prop_a) p_obj.prop_a = opts.prop_a.clone();
     if (opts.prop_anext) p_obj.prop_anext = opts.prop_anext.clone();
 
-    if (p_obj.prop_charge < 0 && (p_obj.prop_iswire || p_obj.prop_is_sec_lead || p_obj.prop_ismagnet)) {
+    if (p_obj.prop_charge < 0 && (p_obj.prop_iswire || p_obj.prop_is_sec_lead || p_obj.prop_ismagnet || p_obj.prop_istension)) {
         var theta_off = Math.random() * 2 * Math.PI;
         var phi_off = Math.acos(2 * Math.random() - 1);
         var r_off = (0.4 + 0.6 * Math.random()) * ELEC_DRAW_OFFSET;
@@ -122,6 +127,12 @@ function init_plot() {
 
 function plotallparticles() {
     if (!points_nuke) init_plot();
+
+    if (typeof mag_states !== 'undefined') {
+        for (var m = 0; m < mag_states.length; m++) {
+            sync_bar_magnet(mag_states[m], true);
+        }
+    }
 
     var n_nuke = 0;
     var n_elec_plot = 0;
