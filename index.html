@@ -103,7 +103,8 @@
       camera.position.set(0, 0, 6);
       camera.lookAt(new THREE.Vector3(0, 0, 0));
 
-      renderer = new THREE.WebGLRenderer();
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
       renderer.setSize(window.innerWidth, scene_height);
 
       controls = new THREE.OrbitControls(camera, renderer.domElement);

@@ -1,4 +1,4 @@
-// Accumulate pairwise Weber forces directly onto each particle's prop_f
+// Accumulate pairwise Weber forces into flat Structure-of-Arrays (SoA) buffers (_fx, _fy, _fz)
 
 // Flat Structure-of-Arrays (SoA) buffers for fast unboxed pairwise force evaluation
 const _px = new Float64Array(MAX_PARTICLES);
@@ -147,11 +147,5 @@ function calc_forces() {
         fx[i] += fix;
         fy[i] += fiy;
         fz[i] += fiz;
-    }
-
-    for (var i = 0; i < n; i++) {
-        if (!iswire[i]) {
-            pts[i].prop_f.set(fx[i], fy[i], fz[i]);
-        }
     }
 }

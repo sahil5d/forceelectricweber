@@ -36,6 +36,7 @@ var circle_tex = null;
 function add_particle(opts) {
     var charge = opts.prop_charge !== undefined ? opts.prop_charge : -1;
     var p_obj = Object.assign({
+        prop_idx: particles.length, // particles.length grows with each push below, assigning sequential index 0, 1, 2, ...
         prop_iswire: false,
         prop_p: new p(0, 0, 0),
         prop_v: new vec(0, 0, 0),
@@ -43,7 +44,6 @@ function add_particle(opts) {
         prop_a: ZEROALL.clone(),
         prop_atemp: new vec(),
         prop_anext: ZEROALL.clone(),
-        prop_f: new vec(0, 0, 0),
         prop_charge: charge,
         prop_mass: charge > 0 ? M_PROT : M_ELEC,
     }, opts);

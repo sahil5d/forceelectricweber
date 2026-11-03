@@ -55,10 +55,10 @@ function logic_pre() {
         if (particles[0].prop_istension) {
             var f_mid0 = 0;
             for (var ts = TENSION_N / 2; ts < TENSION_N; ts++) {
-                f_mid0 += particles[2 * ts].prop_f.x + particles[2 * ts + 1].prop_f.x;
+                f_mid0 += _fx[2 * ts] + _fx[2 * ts + 1];
             }
             particles[0].prop_f_mid0 = f_mid0;
-            particles[0].prop_f_end0 = particles[2 * (TENSION_N - 1)].prop_f.x + particles[2 * (TENSION_N - 1) + 1].prop_f.x;
+            particles[0].prop_f_end0 = _fx[2 * (TENSION_N - 1)] + _fx[2 * (TENSION_N - 1) + 1];
         }
     }
 

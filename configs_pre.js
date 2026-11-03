@@ -493,6 +493,9 @@ function pre_magnets_attract() {
 }
 
 function pre_magnets_repel() {
+    // Initially N-to-N (S->N and N<-S): both magnets repel and torque counterclockwise toward theta = 90 deg
+    // (side-by-side anti-parallel equilibrium). Over longer runs, angular momentum carries them past 90 deg to 180 deg
+    // (S-to-S repulsion), where the 1/r^4 force and 1/r^3 torque are much weaker as the magnets have already moved apart.
     build_bar_magnets(-1, MAG_TILT, MAG_D0_REPEL);
 }
 

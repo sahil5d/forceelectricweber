@@ -9,15 +9,18 @@ function calc_each_accel(foranext) {
         }
 
         var target_a = foranext ? p_i.prop_anext : p_i.prop_a;
-        target_a.copy(p_i.prop_f).multiplyScalar(1 / p_i.prop_mass);
+        var inv_m = 1 / p_i.prop_mass;
+        target_a.set(_fx[i] * inv_m, _fy[i] * inv_m, _fz[i] * inv_m);
     }
 
     for (var mag of mag_states) {
         var fx = 0, fy = 0, tau = 0;
         for (var pt of mag.particles) {
-            fx += pt.prop_f.x;
-            fy += pt.prop_f.y;
-            tau += pt.prop_dx * pt.prop_f.y - pt.prop_dy * pt.prop_f.x;
+            var idx = pt.prop_idx;
+            var fpx = _fx[idx], fpy = _fy[idx];
+            fx += fpx;
+            fy += fpy;
+            tau += pt.prop_dx * fpy - pt.prop_dy * fpx;
         }
         mag.fx = fx;
         mag.fy = fy;
