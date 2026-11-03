@@ -149,6 +149,10 @@ function plotallparticles() {
             pos_nuke[n_nuke * 3 + 2] = particle.prop_p.z;
             n_nuke++;
         } else {
+            if (particle.prop_visual_only && particle.prop_iscoil) {
+                particle.prop_p.x = (particle.prop_xc || 0) + particle.prop_r * Math.cos(particle.prop_phi);
+                particle.prop_p.y = (particle.prop_yc || 0) + particle.prop_r * Math.sin(particle.prop_phi);
+            }
             var doff = particle.prop_draw_offset;
             pos_elec[n_elec_plot * 3] = particle.prop_p.x + (doff ? doff.x : 0);
             pos_elec[n_elec_plot * 3 + 1] = particle.prop_p.y + (doff ? doff.y : 0);

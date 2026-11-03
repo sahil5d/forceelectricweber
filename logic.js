@@ -10,7 +10,7 @@ timestep = 2e-10;
 // timestep = 5e-20;
 // timestep = 2e-21;
 
-var current_config = 'wire';
+var current_config = 'line';
 
 function reset_sim_state() {
     particles.length = 0;
@@ -45,12 +45,12 @@ function logic_pre() {
     calc_each_accel();
 
     if (particles[0]) {
-        particles[0].prop_fx0 = M_ELEC * particles[0].prop_a.x;
-        particles[0].prop_fy0 = M_ELEC * particles[0].prop_a.y;
-        particles[0].prop_fy_mid = particles[0].prop_fy0;
+        particles[0].prop_fx0 = _fx[0];
+        particles[0].prop_fy0 = _fy[0];
+        particles[0].prop_fy_mid = _fy[0];
         if (particles[0].prop_is_par_lead) {
-            particles[0].prop_fy_atom0 = M_PROT * (particles[0].prop_a.y + particles[1].prop_a.y);
-            particles[2].prop_fy_atom0 = M_PROT * (particles[2].prop_a.y + particles[3].prop_a.y);
+            particles[0].prop_fy_atom0 = _fy[0] + _fy[1];
+            particles[2].prop_fy_atom0 = _fy[2] + _fy[3];
         }
         if (particles[0].prop_istension) {
             var f_mid0 = 0;
@@ -93,15 +93,19 @@ function logic_step() {
 
     calc_each_vel_and_accelnext();
 
-    particles.forEach(particle => particle.prop_a.copy(particle.prop_anext)); // setup for next loop
+    for (var i = 0; i < particles.length; i++) {
+        if (!particles[i].prop_iswire && !particles[i].prop_ismagnet) {
+            particles[i].prop_a.copy(particles[i].prop_anext); // setup for next loop
+        }
+    }
 
     if (steps === Math.floor(stepsmax / 2) && particles[0] && particles[0].prop_id === 'elec_test_coil') {
-        particles[0].prop_fy_mid = -M_ELEC * Math.hypot(particles[0].prop_a.x, particles[0].prop_a.y);
+        particles[0].prop_fy_mid = -Math.hypot(_fx[0], _fy[0]);
     }
 
     if (steps === COIL_TURNON_STEP && particles[0] && particles[0].prop_id === 'elec_test_coil_turnon') {
         hud_log('Voltage turned ON at step', steps);
-        particles[0].prop_fy_turnon = M_ELEC * particles[0].prop_a.y;
+        particles[0].prop_fy_turnon = _fy[0];
         particles[0].prop_r0_turnon = particles[0].prop_p.x;
     }
 }

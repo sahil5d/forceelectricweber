@@ -55,7 +55,7 @@ function calc_forces() {
             var pi_group = pi.prop_group;
             var pi_par = pi.prop_is_par_lead;
             var js = i + 1;
-            // Ignore internal forces within the same wire, coil, or bar magnet, and skip visual-only coils
+            // Ignore internal forces within the same wire (line), coil, or bar magnet, and skip visual-only coils
             while (js < n && (pts[js].prop_visual_only || (pi_group && pts[js].prop_group === pi_group) || (pi_par && pts[js].prop_is_par_lead))) {
                 js++;
             }

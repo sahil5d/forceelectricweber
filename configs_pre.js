@@ -1,9 +1,9 @@
 // Objects are all built from elementary neutral segments
 //   At runtime, all segments are flattened into the global `particles` array,
 //   so `calc_forces()` and `plotallparticles()` operate directly on particles.
-// Segment (`add_wire_segment`): 1 proton (+q) + 1 electron (-q).
+// Segment (`add_segment`): 1 proton (+q) + 1 electron (-q).
 // Line (straight wire)
-//   `add_dc_wire`, `pre_ac_wire`, `build_parallel_wires`, `pre_wire_tension`
+//   `add_line`, `pre_line_ac`, `build_lines_parallel`, `pre_line_tension`
 //   n segments along a line
 //   electrons advance along x and wrap around at the ends in `calc_each_pos()`
 // Coil (circular wire) 
@@ -18,7 +18,7 @@
 
 
 // Helper: create a neutral wire/coil segment (1 positive proton/ion +q and 1 negative electron -q)
-function add_wire_segment(id_base, q, shared_opts, elec_opts) {
+function add_segment(id_base, q, shared_opts, elec_opts) {
     for (var sgn of [1, -1]) {
         add_particle(Object.assign(
             {
@@ -32,11 +32,11 @@ function add_wire_segment(id_base, q, shared_opts, elec_opts) {
 }
 
 // Helper: create a straight DC wire of n segments along the x-axis from -len/2 to +len/2
-function add_dc_wire(n, len, vd, q, id_prefix) {
+function add_line(n, len, vd, q, id_prefix) {
     var dx = len / n;
     for (var i = 1; i <= n; i++) {
         var x = -len / 2 + (i - 0.5) * dx;
-        add_wire_segment(
+        add_segment(
             id_prefix + i,
             q,
             {
@@ -61,7 +61,7 @@ function add_coil(n, R, z, vd, q, id_prefix, extra_shared) {
     for (var i = 0; i < n; i++) {
         var phi = (2 * Math.PI * i) / n;
         var px = xc + R * Math.cos(phi), py = yc + R * Math.sin(phi);
-        add_wire_segment(
+        add_segment(
             id_prefix + (i + 1),
             q,
             Object.assign(
@@ -90,7 +90,7 @@ const WIRE_VD = 1.5e-3 * CSPEED; // wire electron drift v (+x, vd << v0)
 const TEST_V0 = 0.1 * CSPEED; // lone test electron velocity (+x, parallel to wire)
 const WIRE_Q = 2e14 / 3; // charge per wire segment at meter scale (1/3 per particle with 3x particles)
 
-function pre_wire() {
+function pre_line() {
     // Lone test electron moving parallel to the wire at y = WIRE_D0, centered across x = 0
     var x_start = -0.5 * TEST_V0 * (stepsmax * timestep);
     add_particle({
@@ -102,7 +102,7 @@ function pre_wire() {
     });
 
     // Wire along x-axis from -WIRE_L/2 to +WIRE_L/2 made of protons and drifting electrons
-    add_dc_wire(N_WIRE, WIRE_L, WIRE_VD, WIRE_Q, 'wire');
+    add_line(N_WIRE, WIRE_L, WIRE_VD, WIRE_Q, 'wire');
 
     // Reference line along +x at y = WIRE_D0 showing the initial straight direction
     plotlinesegment(new vec(1, 0, 0), new p(x_start, WIRE_D0, 0), -1.99 * x_start, 0x686260);
@@ -143,7 +143,7 @@ const AC_AMP = 0.8; // m, oscillation amplitude of AC wire electrons
 const AC_CYCLES = 2.5; // number of AC cycles over stepsmax
 const AC_Q = 7.5e13 / 3; // charge per AC wire segment at meter scale (1/3 per particle with 3x particles)
 
-function pre_ac_wire() {
+function pre_line_ac() {
     var omega = (2 * Math.PI * AC_CYCLES) / (stepsmax * timestep);
 
     // Lone test electron initially at rest at (0, AC_WIRE_D0, 0) near the AC wire
@@ -160,7 +160,7 @@ function pre_ac_wire() {
     for (var i = 1; i <= N_AC_WIRE; i++) {
         var x0 = -AC_WIRE_L / 2 + (i - 0.5) * AC_WIRE_DX;
         var xe = wrap_coord(x0 - AC_AMP, AC_WIRE_L);
-        add_wire_segment(
+        add_segment(
             'ac' + i,
             AC_Q,
             {
@@ -213,8 +213,8 @@ const TFR_N_PER_LOOP = 72;
 const TFR_R1 = 8; // m, radius of 3-loop primary coil
 const TFR_R2 = 6.5; // m, radius of 1-loop secondary coil
 const TFR_DZ = 0.8; // m, axial spacing between primary loops
-const TFR_CYCLES = 2; // number of AC cycles over stepsmax
-const TFR_AMP_PHI1 = (2 * Math.PI) / 24; // angular AC amplitude (rad) of primary coil electrons
+const TFR_CYCLES = 1; // number of AC cycles over stepsmax
+const TFR_AMP_PHI1 = (2 * Math.PI) / 72; // angular AC amplitude (rad) of primary coil electrons
 const TFR_Q1 = 6.85e13; // charge per primary wire segment (chosen so 1-loop secondary electron speed is 3x the 3-loop primary speed)
 
 function add_secondary_coil() {
@@ -243,7 +243,7 @@ function add_secondary_coil() {
     }
 }
 
-function pre_transformer() {
+function pre_coils_ac() {
     add_secondary_coil();
 
     // 3) Push the 3-loop primary coil (radius TFR_R1) driven with alternating current:
@@ -256,7 +256,7 @@ function pre_transformer() {
         var zk = (k - (TFR_N1 - 1) / 2) * TFR_DZ;
         for (var i = 0; i < TFR_N_PER_LOOP; i++) {
             var phi0 = (2 * Math.PI * i) / TFR_N_PER_LOOP;
-            add_wire_segment(
+            add_segment(
                 'pri_l' + (k + 1) + '_' + (i + 1),
                 TFR_Q1,
                 {
@@ -282,7 +282,7 @@ const PAR_VD = 0.015 * CSPEED; // equal electron drift speed magnitude in both w
 const PAR_Q = 1.1e18 / 3; // equal charge per segment in both wires at meter scale (scaled for proton mass M_PROT)
 var par_vd2_signed = PAR_VD;
 
-function build_parallel_wires(vd2_dir) {
+function build_lines_parallel(vd2_dir) {
     par_vd2_signed = vd2_dir * PAR_VD;
     var y1_0 = -PAR_D0 / 2;
     var y2_0 = PAR_D0 / 2;
@@ -296,7 +296,7 @@ function build_parallel_wires(vd2_dir) {
     ];
 
     for (var ws of wire_specs) {
-        add_wire_segment(
+        add_segment(
             'par_w' + ws.id + '_lead',
             1,
             {
@@ -321,7 +321,7 @@ function build_parallel_wires(vd2_dir) {
         var ws2 = wire_specs[w];
         for (var j = 1; j <= PAR_N; j++) {
             var xj = -PAR_L / 2 + (j - 0.5) * PAR_DX;
-            add_wire_segment(
+            add_segment(
                 'par_w' + ws2.id + '_' + j,
                 PAR_Q,
                 {
@@ -347,12 +347,12 @@ function build_parallel_wires(vd2_dir) {
     set_camera(0, 0, 28, 0, 0, 0);
 }
 
-function pre_parallel_wires() {
-    build_parallel_wires(1);
+function pre_lines_parallel() {
+    build_lines_parallel(1);
 }
 
-function pre_antiparallel_wires() {
-    build_parallel_wires(-1);
+function pre_lines_antiparallel() {
+    build_lines_parallel(-1);
 }
 
 const MAG_NS = 9; // 9 coil layers along the bar magnet's length (dipole axis)
@@ -521,12 +521,12 @@ function pre_magnet_coil() {
     set_camera(20, 0, 20, 0, 0, 0);
 }
 
-function pre_wire_magnet() {
+function pre_line_magnet() {
     // 1) Bar magnet on the z-axis at (0, 0, OERSTED_Z0) with z < 0, initially parallel to the wire (theta0 = 0 along x-axis)
     add_bar_magnet(1, 0, 0, MAG_VD, OERSTED_Z0);
 
     // 2) Straight DC wire along the x-axis (y = 0, z = 0)
-    add_dc_wire(OERSTED_N, OERSTED_L, OERSTED_VD, OERSTED_Q, 'oersted');
+    add_line(OERSTED_N, OERSTED_L, OERSTED_VD, OERSTED_Q, 'oersted');
 
     set_camera(0, 15, 15, 0, 0, 0);
 }
@@ -538,14 +538,14 @@ const TENSION_VD = 0.045 * CSPEED; // electron drift speed (+x) along wire
 const TENSION_Q = 6.4e16; // charge per wire segment (scaled for proton mass M_PROT)
 const TENSION_PMASS = TENSION_Q * M_PROT; // mass per particle in segment
 
-function pre_wire_tension() {
+function pre_line_tension() {
     // Straight wire along x-axis where all segments interact pairwise via calc_forces():
     // Each segment k has its own prop_group ('tseg' + k) and prop_iswire: false,
     // so same-segment proton & electron skip each other while all distinct segments repel longitudinally
     for (var k = 1; k <= TENSION_N; k++) {
         var x0 = -TENSION_L / 2 + (k - 0.5) * TENSION_DX;
         var lead_idx = 2 * (k - 1);
-        add_wire_segment(
+        add_segment(
             'tseg' + k,
             TENSION_Q,
             {
@@ -624,33 +624,33 @@ function pre_spherical_shell() {
 */
 
 var CONFIG_PRE = {
-    wire: pre_wire,
+    line: pre_line,
     coil: pre_coil,
-    ac_wire: pre_ac_wire,
+    line_ac: pre_line_ac,
     coil_turnon: pre_coil_turnon,
-    transformer: pre_transformer,
-    parallel_wires: pre_parallel_wires,
-    antiparallel_wires: pre_antiparallel_wires,
+    coils_ac: pre_coils_ac,
+    lines_parallel: pre_lines_parallel,
+    lines_antiparallel: pre_lines_antiparallel,
     magnets_attract: pre_magnets_attract,
     magnets_repel: pre_magnets_repel,
     magnet_coil: pre_magnet_coil,
-    wire_magnet: pre_wire_magnet,
-    wire_tension: pre_wire_tension,
+    line_magnet: pre_line_magnet,
+    line_tension: pre_line_tension,
     // spherical_shell: pre_spherical_shell
 };
 
 var config_descriptions = {
-    wire: '• Lone electron (v = 0.1c) parallel to DC wire at y = 4.5 m\n• Direct Weber velocity force (vᵣ²/2c², v⊥²/c² terms)\n• Replaces magnetic field B and F = qv x B',
+    line: '• Lone electron (v = 0.1c) parallel to DC wire at y = 4.5 m\n• Direct Weber velocity force (vᵣ²/2c², v⊥²/c² terms)\n• Replaces magnetic field B and F = qv x B',
     coil: '• Lone electron (v = 0.05c) through center of circular coil (R = 8 m)\n• Direct Weber pairwise force from rotating coil electrons\n• Replaces circular coil B-field and F = qv x B',
-    ac_wire: '• Stationary electron at y = 2.5 m near 120 m AC wire\n• Direct Weber acceleration force (r aᵣ/c² term)\n• Replaces Faraday inductive field E = −∂A/∂t',
+    line_ac: '• Stationary electron at y = 2.5 m near 120 m AC wire\n• Direct Weber acceleration force (r aᵣ/c² term)\n• Replaces Faraday inductive field E = −∂A/∂t',
     coil_turnon: '• Stationary electron in 1-loop coil (R = 8 m), turn-on at step 600\n• Direct Weber acceleration kick from ramping coil electrons\n• Replaces Faraday/Lenz changing-flux B-field induction',
-    transformer: '• 3-loop AC primary (R1 = 8 m) and 1-loop secondary (R2 = 6.5 m)\n• Direct primary-to-secondary Weber acceleration force\n• Replaces magnetic flux linkage (V2/V1 = N2/N1 = 1/3)',
-    parallel_wires: '• Two 120 m wires at y = ±2 m, same-direction currents (|I1| = |I2|)\n• Direct pairwise Weber attraction (both move equally toward y = 0)\n• Replaces wire-to-wire B-field and Ampère force law',
-    antiparallel_wires: '• Two 120 m wires at y = ±2 m, opp-direction currents (|I1| = |I2|)\n• Direct pairwise Weber repulsion (both move equally apart)\n• Replaces wire-to-wire B-field and Ampère force law',
+    coils_ac: '• 3-loop AC primary (R1 = 8 m) and 1-loop secondary (R2 = 6.5 m)\n• Direct primary-to-secondary Weber acceleration force\n• Replaces magnetic flux linkage (V2/V1 = N2/N1 = 1/3)',
+    lines_parallel: '• Two 120 m wires at y = ±2 m, same-direction currents (|I1| = |I2|)\n• Direct pairwise Weber attraction (both move equally toward y = 0)\n• Replaces wire-to-wire B-field and Ampère force law',
+    lines_antiparallel: '• Two 120 m wires at y = ±2 m, opp-direction currents (|I1| = |I2|)\n• Direct pairwise Weber repulsion (both move equally apart)\n• Replaces wire-to-wire B-field and Ampère force law',
     magnets_attract: '• Two 5×5×9-coil bar magnets at x = ±3.0 m, aligned (N–S)\n• Direct pairwise Weber attraction between circulating Ampèrian loops\n• Replaces magnetic pole / Biot-Savart dipole attraction',
     magnets_repel: '• Two 5×5×9-coil bar magnets at x = ±2.3 m, opp currents (N–N) tilted 6°\n• Direct pairwise Weber torque and repulsion rotates and pushes apart\n• Replaces magnetic dipole torque τ = μ × B and repulsion',
     magnet_coil: '• 5×5×9-coil bar magnet (vz = 0.06c) moving through coil (R = 6.5 m)\n• Direct Weber velocity force (vᵣ²/2c², v⊥²/c²) drives coil current\n• Replaces Faraday moving-magnet flux induction E = −dΦ_B/dt',
-    wire_magnet: '• 5×5×9-coil bar magnet at (0, 0, −2.8 m) below DC wire (Ørsted exp)\n• Direct pairwise Weber torque twists magnet to be perp\n• Replaces wire B-field and compass torque τ = μ × B',
-    wire_tension: '• 60-segment DC wire (L = 8 m) with inter-segment Weber forces\n• Collinear segments repel via −vᵣ²/2c², stretching & exploding wire\n• Ampère–Weber longitudinal tension (Lorentz I dl × B predicts 0)',
+    line_magnet: '• 5×5×9-coil bar magnet at (0, 0, −2.8 m) below DC wire (Ørsted exp)\n• Direct pairwise Weber torque twists magnet to be perp\n• Replaces wire B-field and compass torque τ = μ × B',
+    line_tension: '• 60-segment DC wire (L = 8 m) with inter-segment Weber forces\n• Collinear segments repel via −vᵣ²/2c², stretching & exploding wire\n• Ampère–Weber longitudinal tension (Lorentz I dl × B predicts 0)',
     // spherical_shell: '• Stationary electron inside 500-point charged sphere (R = 7 m)\n• Direct Weber acceleration reaction from shell charges\n• Produces F_shell = -(Qq / 3c²R) a'
 };

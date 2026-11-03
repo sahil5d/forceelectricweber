@@ -8,7 +8,7 @@ function log_force_cmp(label_sim, f_sim, label_approx, f_approx) {
     hud_log('Diff:', pct_diff(f_approx, f_sim));
 }
 
-function post_wire() {
+function post_line() {
     var testelec = particles[0];
     // Analytical magnetic force: F_y = q * v0 * B, where B = (mu0 * I) / (2 * pi * d0)
     // Since mu0 / (4 * pi) = k_e / c^2 and I = -e * (WIRE_Q / WIRE_DX) * WIRE_VD:
@@ -34,7 +34,7 @@ function post_coil() {
     hud_log('Δy deflection:', trim(testelec_coil.prop_p.y), 'm');
 }
 
-function post_ac_wire() {
+function post_line_ac() {
     // Analytical Faraday/Weber inductive force on stationary test electron from AC wire acceleration a_e(0):
     // F_x = -(2 * k_e * e^2 * lambda / c^2) * [asinh(L / (2*d0)) - (L/2)/sqrt((L/2)^2 + d0^2)] * a_e(0)
     var omega_ac = (2 * Math.PI * AC_CYCLES) / (stepsmax * timestep);
@@ -63,7 +63,7 @@ function post_coil_turnon() {
     hud_log('Tangential kick Δy:', trim(testelec_coil_turnon.prop_p.y), 'm');
 }
 
-function post_transformer() {
+function post_coils_ac() {
     // Analytical Faraday/Neumann mutual-inductance tangential force & EMF on 1-loop secondary from 3-loop AC primary:
     // F_phi = -(KEE * TFR_Q1 * R1 * R2 * a_phi1(0) / c^2) * sum_{k=0..N1-1, i=0..N-1} sin^2(phi_i) / r_{ki}^3
     // Induced EMF on secondary loop is E_2 = 2 * pi * R2 * (F_phi / E_CHARGE)
@@ -95,7 +95,7 @@ function post_transformer() {
     hud_log('Voltage Ratio V2 (' + TFR_N2 + ' loop) / V1 (' + TFR_N1 + ' loops):', trim(v2_emf_sim / v1_n1turn_equiv), '(N2/N1 = ' + TFR_N2 + '/' + TFR_N1 + ')');
 }
 
-function post_parallel_wires() {
+function post_lines_parallel() {
     // Analytical Ampère force on a neutral atom of Wire 2 (at y = +PAR_D0/2) and Wire 1 (at y = -PAR_D0/2):
     // Both wires carry equal current magnitude |I1| = |I2| = (PAR_Q / PAR_DX) * e * PAR_VD.
     // For finite wire length L: geom_amp = (L/2)/sqrt((L/2)^2 + d0^2) * [1 + d0^2 / ((L/2)^2 + d0^2)] -> 1 as L -> inf
@@ -205,7 +205,7 @@ function post_magnet_coil() {
     hud_log('Coil Electron Rotation Δφ:', trim(dphi_deg), 'deg | Induced |v_φ|/c:', trim(Math.abs(particles[0].prop_vphi) / CSPEED));
 }
 
-function post_wire_magnet() {
+function post_line_magnet() {
     var m1 = mag_states[0];
     // Analytical Biot-Savart / Ampère torque from finite DC wire of length OERSTED_L on x-axis (z = 0) onto bar magnet at (0, 0, OERSTED_Z0):
     var b_fac = (2 * KEE * OERSTED_N * OERSTED_Q * OERSTED_VD) / (CSQUARED * OERSTED_L);
@@ -232,7 +232,7 @@ function post_wire_magnet() {
     hud_log('Magnet Rotation Δθ:', trim(dtheta_deg), 'deg (twists toward 90° perp to wire)');
 }
 
-function post_wire_tension() {
+function post_line_tension() {
     // Analytical Ampère–Weber longitudinal repulsion between collinear wire segments:
     // F_x(i <- j) = (KEE * q^2 * vd^2) / (c^2 * (x_i - x_j)^2) = (mu0 / 4pi) * (I * dx)^2 / (x_i - x_j)^2
     // Midpoint axial tension T_mid is the sum of longitudinal repulsion between the left half (x < 0) and right half (x > 0):
@@ -281,17 +281,17 @@ function post_spherical_shell() {
 */
 
 var CONFIG_POST = {
-    wire: post_wire,
+    line: post_line,
     coil: post_coil,
-    ac_wire: post_ac_wire,
+    line_ac: post_line_ac,
     coil_turnon: post_coil_turnon,
-    transformer: post_transformer,
-    parallel_wires: post_parallel_wires,
-    antiparallel_wires: post_parallel_wires,
+    coils_ac: post_coils_ac,
+    lines_parallel: post_lines_parallel,
+    lines_antiparallel: post_lines_parallel,
     magnets_attract: post_magnets_attract,
     magnets_repel: post_magnets_repel,
     magnet_coil: post_magnet_coil,
-    wire_magnet: post_wire_magnet,
-    wire_tension: post_wire_tension,
+    line_magnet: post_line_magnet,
+    line_tension: post_line_tension,
     // spherical_shell: post_spherical_shell
 };

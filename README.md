@@ -3,7 +3,7 @@
 - Model electrons, protons, wires (lines and coils), bar magnets (as stacked coils)
 - Calculate forces with exact SI units
 
-Note: wires, coils, bar magnets are modeled as custom objects (wire segment objects). The sim electrons drift along fixed protons without computing internal forces (can model inside the atom in a future project).
+Note: wires (lines), coils, bar magnets are modeled as custom objects (wire segment objects). The sim electrons drift along fixed protons without computing internal forces (can model inside the atom in a future project).
 
 ![screenshot1](screenshot1.png)
 

@@ -8,6 +8,24 @@ function calc_each_accel(foranext) {
             continue;
         }
 
+        if (p_i.prop_istension) {
+            if (i === p_i.prop_lead_idx) {
+                var ax = 0.5 * (_fx[i] + _fx[i + 1]) / p_i.prop_mass;
+                (foranext ? p_i.prop_anext : p_i.prop_a).set(ax, 0, 0);
+                (foranext ? particles[i + 1].prop_anext : particles[i + 1].prop_a).set(ax, 0, 0);
+            }
+            continue;
+        }
+
+        if (p_i.prop_is_par_lead) {
+            if (i === p_i.prop_lead_idx) {
+                var ay = 0.5 * (_fy[i] + _fy[i + 1]) / p_i.prop_mass;
+                (foranext ? p_i.prop_anext : p_i.prop_a).set(0, ay, 0);
+                (foranext ? particles[i + 1].prop_anext : particles[i + 1].prop_a).set(0, ay, 0);
+            }
+            continue;
+        }
+
         var target_a = foranext ? p_i.prop_anext : p_i.prop_a;
         var inv_m = 1 / p_i.prop_mass;
         target_a.set(_fx[i] * inv_m, _fy[i] * inv_m, _fz[i] * inv_m);
@@ -81,26 +99,18 @@ function calc_each_vel_and_accelnext() {
             continue;
         }
         if (p_i.prop_istension) {
-            var t_idx = p_i.prop_lead_idx;
-            if (i === t_idx) {
-                var ax_prev = 0.5 * (particles[t_idx].prop_atemp.x + particles[t_idx + 1].prop_atemp.x);
-                var ax_next = 0.5 * (particles[t_idx].prop_anext.x + particles[t_idx + 1].prop_anext.x);
-                var vx_new = particles[t_idx].prop_v.x + 0.5 * (ax_prev + ax_next) * timestep;
-                particles[t_idx].prop_v.set(vx_new, 0, 0);
-                particles[t_idx + 1].prop_v.set(vx_new + particles[t_idx].prop_vd, 0, 0);
-                particles[t_idx].prop_anext.set(ax_next, 0, 0);
-                particles[t_idx + 1].prop_anext.set(ax_next, 0, 0);
+            if (i === p_i.prop_lead_idx) {
+                var vx_new = p_i.prop_v.x + 0.5 * (p_i.prop_atemp.x + p_i.prop_anext.x) * timestep;
+                p_i.prop_v.set(vx_new, 0, 0);
+                particles[i + 1].prop_v.set(vx_new + p_i.prop_vd, 0, 0);
             }
             continue;
         }
         if (p_i.prop_is_par_lead) {
-            var idx = p_i.prop_lead_idx;
-            if (i === idx) {
-                var ay_prev = 0.5 * (particles[idx].prop_atemp.y + particles[idx + 1].prop_atemp.y);
-                var ay_next = 0.5 * (particles[idx].prop_anext.y + particles[idx + 1].prop_anext.y);
-                var vy_new = particles[idx].prop_v.y + 0.5 * (ay_prev + ay_next) * timestep;
-                particles[idx].prop_v.set(0, vy_new, 0);
-                particles[idx + 1].prop_v.set(particles[idx].prop_vd, vy_new, 0);
+            if (i === p_i.prop_lead_idx) {
+                var vy_new = p_i.prop_v.y + 0.5 * (p_i.prop_atemp.y + p_i.prop_anext.y) * timestep;
+                p_i.prop_v.set(0, vy_new, 0);
+                particles[i + 1].prop_v.set(p_i.prop_vd, vy_new, 0);
             }
             continue;
         }
@@ -150,12 +160,10 @@ function calc_each_pos() {
         }
 
         if (p_i.prop_istension) {
-            var t_idx = p_i.prop_lead_idx;
-            if (i === t_idx) {
-                var ax_curr = 0.5 * (particles[t_idx].prop_a.x + particles[t_idx + 1].prop_a.x);
-                var x_new = particles[t_idx].prop_p.x + particles[t_idx].prop_v.x * timestep + 0.5 * ax_curr * (timestep ** 2);
-                particles[t_idx].prop_p.x = x_new;
-                particles[t_idx + 1].prop_p.x = x_new;
+            if (i === p_i.prop_lead_idx) {
+                var x_new = p_i.prop_p.x + p_i.prop_v.x * timestep + 0.5 * p_i.prop_a.x * (timestep ** 2);
+                p_i.prop_p.x = x_new;
+                particles[i + 1].prop_p.x = x_new;
             }
             continue;
         }
@@ -164,9 +172,8 @@ function calc_each_pos() {
             var idx = p_i.prop_lead_idx;
             if (p_i.prop_is_par_lead) {
                 if (i === idx) {
-                    var ay_curr = 0.5 * (particles[idx].prop_a.y + particles[idx + 1].prop_a.y);
-                    var y_new = particles[idx].prop_p.y + particles[idx].prop_v.y * timestep + 0.5 * ay_curr * (timestep ** 2);
-                    particles[idx].prop_p.y = y_new;
+                    var y_new = p_i.prop_p.y + p_i.prop_v.y * timestep + 0.5 * p_i.prop_a.y * (timestep ** 2);
+                    p_i.prop_p.y = y_new;
                     particles[idx + 1].prop_p.y = y_new;
                     // record_trail(particles[idx]);
                 }
@@ -228,7 +235,11 @@ function calc_each_pos() {
                 p_i.prop_p.z += p_i.prop_vz * timestep;
             }
             if (p_i.prop_charge < 0) {
-                step_coil_electron(p_i, p_i.prop_r, p_i.prop_vd);
+                if (p_i.prop_visual_only) {
+                    p_i.prop_phi += (p_i.prop_vd / p_i.prop_r) * timestep;
+                } else {
+                    step_coil_electron(p_i, p_i.prop_r, p_i.prop_vd);
+                }
             }
             continue;
         }

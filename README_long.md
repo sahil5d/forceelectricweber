@@ -4,7 +4,7 @@ Simulate electromagnetic and magnetic phenomena using **only** Wilhelm Weber's d
 
 $$F = \frac{k q_1 q_2}{r^2}\left(1 - \frac{\dot{r}^2}{2c^2} + \frac{r\ddot{r}}{c^2}\right) = \frac{k q_1 q_2}{r^2}\left(1 - \frac{v_r^2}{2c^2} + \frac{v_\perp^2}{c^2} + \frac{r a_r}{c^2}\right)$$
 
-Every wire, coil, and bar magnet in the scene is modeled explicitly as neutral pairs of positive ions (protons) and mobile/circulating electrons. (Note: wires, coils, and magnets are modeled as macroscopic charge segments rather than at the individual atomic level; electrons are constrained to drift along the protons of their conductor, and internal forces within the same wire, coil, or magnet are not computed.) At each timestep, the simulation sums only the pairwise central Weber force along the line connecting each pair of charges on interacting bodies—reproducing magnetic deflection, Faraday induction, transformer action, Ampère wire forces, permanent-magnet forces/torques, and Ørsted compass alignment **without** intermediate $\vec{B}$ fields, $\vec{A}$ potentials, or separate Lorentz/Faraday rules.
+Every wire (line), coil, and bar magnet in the scene is modeled explicitly as neutral pairs of positive ions (protons) and mobile/circulating electrons. (Note: wires (lines), coils, and magnets are modeled as macroscopic charge segments rather than at the individual atomic level; electrons are constrained to drift along the protons of their conductor, and internal forces within the same wire (line), coil, or magnet are not computed.) At each timestep, the simulation sums only the pairwise central Weber force along the line connecting each pair of charges on interacting bodies—reproducing magnetic deflection, Faraday induction, transformer action, Ampère wire forces, permanent-magnet forces/torques, and Ørsted compass alignment **without** intermediate $\vec{B}$ fields, $\vec{A}$ potentials, or separate Lorentz/Faraday rules.
 
 ---
 
@@ -43,7 +43,7 @@ For each pair of charges $q_1, q_2$ with relative position $\vec{r} = \vec{r}_2 
 Open `index.html` directly in any browser, select a configuration in the top-right panel, and click **Start**. At completion (2000 steps), the bottom-right HUD compares the simulated Weber force, torque, or induced EMF against the standard analytical Lorentz/Biot-Savart/Faraday/Ampère formulas.
 
 - **`calc_forces.js`** — Core $O(N^2)$ pairwise Weber force calculation (`calc_forces()`).
-- **`calc.js`** — Velocity-Verlet integration (`calc_each_pos()`, `calc_each_accel()`, `calc_each_vel_and_accelnext()`) for free particles, constrained wire/coil electrons, and rigid-body bar magnets.
+- **`calc.js`** — Velocity-Verlet integration (`calc_each_pos()`, `calc_each_accel()`, `calc_each_vel_and_accelnext()`) for free particles, constrained wire line or coil electrons, and rigid-body bar magnets.
 - **`configs_pre.js`** — Particle geometry, initial conditions (`CONFIG_PRE`), and HUD descriptions (`config_descriptions`) for all 11 configurations.
 - **`configs_post.js`** — Post-simulation analytical field-theory comparisons (`CONFIG_POST`) logged to the HUD.
 - **`logic.js`** — Simulation lifecycle (`logic_pre()`, `logic_step()`, `logic_post()`).
