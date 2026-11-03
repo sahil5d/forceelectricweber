@@ -265,7 +265,7 @@ function pre_coils_ac() {
                     prop_p: new p(TFR_R1 * Math.cos(phi0), TFR_R1 * Math.sin(phi0), zk),
                 }
             );
-            set_coil_state(particles[particles.length - 1], TFR_R1, phi0 - TFR_AMP_PHI1, 0, aphi1_0);
+            set_coil_state(particles[particles.length - 1], phi0 - TFR_AMP_PHI1, 0, aphi1_0);
         }
     }
 
@@ -405,7 +405,7 @@ function add_bar_magnet(id, x0, theta0, vd, z0) {
         id: id, x0: x0, theta0: theta0,
         x: x0, y: 0, z: z0, vx: 0, vy: 0, ax: 0, ay: 0, ax_old: 0, ay_old: 0,
         theta: theta0, omega: 0, alpha: 0, alpha_old: 0, phi_shift: 0,
-        vd: vd, fx: 0, fy: 0, tau: 0, fx0: 0, fy0: 0, tau0: 0,
+        vd: vd, fx: 0, fy: 0, tau: 0, fx0: 0, tau0: 0,
         mass: 0, inertia: 0, particles: [], visual_particles: [],
     };
     for_each_mag_seg(function (s, uc, wc, phi, is_active, coil_idx, i) {

@@ -192,20 +192,21 @@ function tangential_comp(v, phi) {
     return -v.x * Math.sin(phi) + v.y * Math.cos(phi);
 }
 
-function set_coil_state(p_obj, R, phi, vd, ad) {
+function set_coil_state(p_obj, phi, vd, ad) {
+    var R = p_obj.prop_r, cosP = Math.cos(phi), sinP = Math.sin(phi);
     p_obj.prop_phi = phi;
-    p_obj.prop_p.x = (p_obj.prop_xc || 0) + R * Math.cos(phi);
-    p_obj.prop_p.y = (p_obj.prop_yc || 0) + R * Math.sin(phi);
-    p_obj.prop_v.x = -vd * Math.sin(phi);
-    p_obj.prop_v.y = vd * Math.cos(phi);
+    p_obj.prop_p.x = (p_obj.prop_xc || 0) + R * cosP;
+    p_obj.prop_p.y = (p_obj.prop_yc || 0) + R * sinP;
+    p_obj.prop_v.x = -vd * sinP;
+    p_obj.prop_v.y = vd * cosP;
     if (ad !== undefined) {
-        p_obj.prop_a.x = -ad * Math.sin(phi);
-        p_obj.prop_a.y = ad * Math.cos(phi);
+        p_obj.prop_a.x = -ad * sinP;
+        p_obj.prop_a.y = ad * cosP;
     }
 }
 
-function step_coil_electron(p_obj, R, vd, ad) {
-    set_coil_state(p_obj, R, p_obj.prop_phi + (vd / R) * timestep, vd, ad);
+function step_coil_electron(p_obj, vd, ad) {
+    set_coil_state(p_obj, p_obj.prop_phi + (vd / p_obj.prop_r) * timestep, vd, ad);
 }
 
 function sync_bar_magnet(mag, sync_visual) {
@@ -327,7 +328,7 @@ function calc_each_pos() {
                 var phi_p = p_i.prop_phi0 - TFR_AMP_PHI1 * Math.cos(omega_tfr * t_next);
                 var vphi_p = p_i.prop_r * TFR_AMP_PHI1 * omega_tfr * Math.sin(omega_tfr * t_next);
                 var aphi_p = p_i.prop_r * TFR_AMP_PHI1 * (omega_tfr ** 2) * Math.cos(omega_tfr * t_next);
-                set_coil_state(p_i, p_i.prop_r, phi_p, vphi_p, aphi_p);
+                set_coil_state(p_i, phi_p, vphi_p, aphi_p);
             }
             continue;
         }
@@ -342,14 +343,14 @@ function calc_each_pos() {
                 p_i.prop_p.y = p_i.prop_r * Math.sin(phi_new);
                 // record_trail(p_i);
             } else if (p_i.prop_charge < 0) {
-                set_coil_state(p_i, p_i.prop_r, p_i.prop_phi0 + particles[0].prop_phi, particles[0].prop_vphi);
+                set_coil_state(p_i, p_i.prop_phi0 + particles[0].prop_phi, particles[0].prop_vphi);
             }
             continue;
         }
 
         if (p_i.prop_iscoil_turnon) {
             if (p_i.prop_charge < 0) {
-                step_coil_electron(p_i, p_i.prop_r, coil_vd_curr, coil_ad_curr);
+                step_coil_electron(p_i, coil_vd_curr, coil_ad_curr);
             }
             continue;
         }
@@ -371,7 +372,7 @@ function calc_each_pos() {
                 if (p_i.prop_visual_only) {
                     p_i.prop_phi += (p_i.prop_vd / p_i.prop_r) * timestep;
                 } else {
-                    step_coil_electron(p_i, p_i.prop_r, p_i.prop_vd);
+                    step_coil_electron(p_i, p_i.prop_vd);
                 }
             }
             continue;
@@ -379,7 +380,7 @@ function calc_each_pos() {
 
         if (p_i.prop_isdcwire) {
             if (p_i.prop_charge < 0) {
-                p_i.prop_p.x = wrap_coord(p_i.prop_p.x + (p_i.prop_vd || WIRE_VD) * timestep, p_i.prop_wire_l || WIRE_L);
+                p_i.prop_p.x = wrap_coord(p_i.prop_p.x + p_i.prop_vd * timestep, p_i.prop_wire_l);
             }
             continue;
         }

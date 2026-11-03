@@ -62,10 +62,9 @@ function logic_pre() {
         }
     }
 
-    for (var m = 0; m < mag_states.length; m++) {
-        mag_states[m].fx0 = mag_states[m].fx;
-        mag_states[m].fy0 = mag_states[m].fy;
-        mag_states[m].tau0 = mag_states[m].tau;
+    for (var mag of mag_states) {
+        mag.fx0 = mag.fx;
+        mag.tau0 = mag.tau;
     }
 
     /*

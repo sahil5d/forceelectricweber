@@ -22,8 +22,6 @@ const INV_CSQUARED = 1 / CSQUARED;
 
 const JOULETOEV = 6.241509 * 10 ** 18;
 
-const ZEROALL = new p(0, 0, 0);
-
 const MAX_PARTICLES = 10000;
 // const TRAIL_LEN = 100;
 const ELEC_DRAW_OFFSET = 0.02;
@@ -41,7 +39,7 @@ function add_particle(opts) {
         prop_iswire: false,
         prop_p: new p(0, 0, 0),
         prop_v: new vec(0, 0, 0),
-        prop_a: ZEROALL.clone(),
+        prop_a: new vec(0, 0, 0),
         prop_a_old: new vec(),
         prop_charge: charge,
         prop_mass: charge > 0 ? M_PROT : M_ELEC,
@@ -126,10 +124,8 @@ function init_plot() {
 function plotallparticles() {
     if (!points_nuke) init_plot();
 
-    if (typeof mag_states !== 'undefined') {
-        for (var m = 0; m < mag_states.length; m++) {
-            sync_bar_magnet(mag_states[m], true);
-        }
+    for (var mag of mag_states) {
+        sync_bar_magnet(mag, true);
     }
 
     var n_nuke = 0;
