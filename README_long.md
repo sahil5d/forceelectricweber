@@ -8,7 +8,7 @@ Every wire (line), coil, and bar magnet in the scene is modeled explicitly as ne
 
 ---
 
-### Pairwise Weber Kinematics (`calc_forces.js`)
+### Pairwise Weber Kinematics (`calc.js`)
 
 For each pair of charges $q_1, q_2$ with relative position $\vec{r} = \vec{r}_2 - \vec{r}_1$, relative velocity $\vec{v} = \vec{v}_2 - \vec{v}_1$, and relative acceleration $\vec{a} = \vec{a}_2 - \vec{a}_1$:
 
@@ -31,10 +31,11 @@ For each pair of charges $q_1, q_2$ with relative position $\vec{r} = \vec{r}_2 
 | **5** | **Coils AC (Transformer)** | 3-loop AC primary coil ($R_1 = 8\text{ m}$) coaxial with a 1-loop secondary coil ($R_2 = 6.5\text{ m}$) | Primary electron acceleration directly drives secondary coil current with EMF ratio $V_2/V_1 \approx 1/3$ | Mutual inductance & magnetic flux linkage ($V_2/V_1 = N_2/N_1$) |
 | **6** | **Lines Parallel** | Two $120\text{ m}$ neutral DC wires at $y = \pm 2\text{ m}$ carrying currents in the same direction | Both wires attract and move symmetrically toward $y = 0$ | Ampère's parallel-wire attraction $\vec{F} = I\vec{L} \times \vec{B}$ |
 | **7** | **Lines Parallel (Opp Current)** | Two $120\text{ m}$ neutral DC wires at $y = \pm 2\text{ m}$ carrying opposite currents | Both wires repel and move symmetrically apart | Ampère's antiparallel-wire repulsion |
-| **8** | **Bar Magnets Attract** | Two 10-loop Ampèrian bar magnets ($R = 1.4\text{ m}$) with aligned loop currents (N–S facing) | Attract each other along their shared axis | Magnetic pole / dipole-dipole attraction |
-| **9** | **Bar Magnets Repel** | Two 10-loop bar magnets with opposing currents (N–N facing), tilted $6^\circ$ | Simultaneously repel apart and rotate via pairwise torque | Magnetic dipole repulsion & torque $\vec{\tau} = \vec{\mu} \times \vec{B}$ |
-| **10** | **Bar Magnet and Coil (Induction)** | 10-loop bar magnet ($v_z = 0.06c$) moving along $+z$ through a conducting coil ($R = 6.5\text{ m}$) | Relative motion ($\dot{r}^2/2c^2$, $r\ddot{r}/c^2$) induces loop current and EMF in the stationary coil | Faraday moving-magnet induction $\mathcal{E} = -d\Phi_B/dt$ |
-| **11** | **Line and Bar Magnet (Compass)** | 10-loop bar magnet at $(0,0,-2.8\text{ m})$ initially parallel to a $45\text{ m}$ DC wire on the $x$-axis | Pure pairwise Weber torque twists the bar magnet toward $90^\circ$ (perpendicular to the wire) | Ørsted's experiment / compass alignment in a wire's $\vec{B}$ field |
+| **8** | **Bar Magnets Attract** | Two $5\times 5\times 9$-coil Ampèrian bar magnets ($R = 0.09\text{ m}$) with aligned loop currents (N–S facing) | Attract each other along their shared axis | Magnetic pole / dipole-dipole attraction |
+| **9** | **Bar Magnets Repel** | Two $5\times 5\times 9$-coil bar magnets with opposing currents (N–N facing), tilted $6^\circ$ | Simultaneously repel apart and rotate via pairwise torque | Magnetic dipole repulsion & torque $\vec{\tau} = \vec{\mu} \times \vec{B}$ |
+| **10** | **Bar Magnet and Coil (Induction)** | $5\times 5\times 9$-coil bar magnet ($v_z = 0.06c$) moving along $+z$ through a conducting coil ($R = 6.5\text{ m}$) | Relative motion ($\dot{r}^2/2c^2$, $r\ddot{r}/c^2$) induces loop current and EMF in the stationary coil | Faraday moving-magnet induction $\mathcal{E} = -d\Phi_B/dt$ |
+| **11** | **Line and Bar Magnet (Compass)** | $5\times 5\times 9$-coil bar magnet at $(0,0,-2.8\text{ m})$ initially parallel to a $45\text{ m}$ DC wire on the $x$-axis | Pure pairwise Weber torque twists the bar magnet toward $90^\circ$ (perpendicular to the wire) | Ørsted's experiment / compass alignment in a wire's $\vec{B}$ field |
+| **12** | **Line Tension (Exploding Wire)** | $60$-segment DC wire ($L = 8\text{ m}$) along the $x$-axis with inter-segment pairwise Weber forces | Collinear segments repel longitudinally via $-\dot{r}^2/2c^2$, stretching the wire outward | Ampère–Weber longitudinal tension (Lorentz $I\,d\vec{l} \times \vec{B}$ predicts $0$) |
 
 ---
 
@@ -42,9 +43,8 @@ For each pair of charges $q_1, q_2$ with relative position $\vec{r} = \vec{r}_2 
 
 Open `index.html` directly in any browser, select a configuration in the top-right panel, and click **Start**. At completion (2000 steps), the bottom-right HUD compares the simulated Weber force, torque, or induced EMF against the standard analytical Lorentz/Biot-Savart/Faraday/Ampère formulas.
 
-- **`calc_forces.js`** — Core $O(N^2)$ pairwise Weber force calculation (`calc_forces()`).
-- **`calc.js`** — Velocity-Verlet integration (`calc_each_pos()`, `calc_each_accel()`, `calc_each_vel_and_accelnext()`) for free particles, constrained wire line or coil electrons, and rigid-body bar magnets.
-- **`configs_pre.js`** — Particle geometry, initial conditions (`CONFIG_PRE`), and HUD descriptions (`config_descriptions`) for all 11 configurations.
+- **`calc.js`** — Core $O(N^2)$ pairwise Weber force calculation (`calc_forces()`) and Velocity-Verlet integration (`calc_each_pos()`, `calc_each_accel()`, `calc_each_vel_and_accel()`) for free particles, constrained wire line or coil electrons, and rigid-body bar magnets (`sync_bar_magnet()`).
+- **`configs_pre.js`** — Particle geometry, initial conditions (`CONFIG_PRE`), and HUD descriptions (`config_descriptions`) for all 12 configurations.
 - **`configs_post.js`** — Post-simulation analytical field-theory comparisons (`CONFIG_POST`) logged to the HUD.
 - **`logic.js`** — Simulation lifecycle (`logic_pre()`, `logic_step()`, `logic_post()`).
 - **`lib.js`** — Physical constants, particle factory (`add_particle()`), and Three.js rendering helpers.

@@ -89,15 +89,9 @@ function logic_step() {
 
     totaltime += timestep;
 
-    // VELOCITY CALCULATION
+    // VELOCITY & ACCELERATION CALCULATION
 
-    calc_each_vel_and_accelnext();
-
-    for (var i = 0; i < particles.length; i++) {
-        if (!particles[i].prop_iswire && !particles[i].prop_ismagnet) {
-            particles[i].prop_a.copy(particles[i].prop_anext); // setup for next loop
-        }
-    }
+    calc_each_vel_and_accel();
 
     if (steps === Math.floor(stepsmax / 2) && particles[0] && particles[0].prop_id === 'elec_test_coil') {
         particles[0].prop_fy_mid = -Math.hypot(_fx[0], _fy[0]);

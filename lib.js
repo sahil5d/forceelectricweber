@@ -16,6 +16,7 @@ const KEE = 2.307078 * 10 ** -28;   // N*m^2/C^2, Coulomb constant * (1 electron
 // const ALPHA = 0.00729735256;
 const CSPEED = 2.9979 * 10 ** 8; // m/s
 const CSQUARED = CSPEED ** 2;
+const INV_CSQUARED = 1 / CSQUARED;
 
 // const KEEDIVCALPHAALLSQ = (KEE / (ALPHA * CSPEED)) ** 2; // 1.112*10^-68 kg^2 m^4 / s^2. for massmassfx
 
@@ -40,17 +41,14 @@ function add_particle(opts) {
         prop_iswire: false,
         prop_p: new p(0, 0, 0),
         prop_v: new vec(0, 0, 0),
-        prop_vtemp: new vec(),
         prop_a: ZEROALL.clone(),
-        prop_atemp: new vec(),
-        prop_anext: ZEROALL.clone(),
+        prop_a_old: new vec(),
         prop_charge: charge,
         prop_mass: charge > 0 ? M_PROT : M_ELEC,
     }, opts);
     if (opts.prop_p) p_obj.prop_p = opts.prop_p.clone();
     if (opts.prop_v) p_obj.prop_v = opts.prop_v.clone();
     if (opts.prop_a) p_obj.prop_a = opts.prop_a.clone();
-    if (opts.prop_anext) p_obj.prop_anext = opts.prop_anext.clone();
 
     if (p_obj.prop_charge < 0 && (p_obj.prop_iswire || p_obj.prop_is_sec_lead || p_obj.prop_ismagnet || p_obj.prop_istension)) {
         var theta_off = Math.random() * 2 * Math.PI;
@@ -206,6 +204,16 @@ function trim(arg) {
         return parseFloat(arg.toPrecision(3));
     }
     return { x: trim(arg.x), y: trim(arg.y), z: trim(arg.z) };
+}
+
+function pct_diff(approx, sim) {
+    return trim((approx - sim) / Math.abs(sim) * 100) + '%';
+}
+
+function log_force_cmp(label_sim, f_sim, label_approx, f_approx) {
+    hud_log(label_sim, trim(f_sim), 'N');
+    hud_log(label_approx, trim(f_approx), 'N');
+    hud_log('Diff:', pct_diff(f_approx, f_sim));
 }
 
 // from https://stackoverflow.com/questions/9600801/evenly-distributing-n-points-on-a-sphere

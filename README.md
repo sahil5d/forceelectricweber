@@ -26,6 +26,7 @@ Note: careful with scalar, vectors, dots, doubledots. See code in `calc_forces()
 9. Bar magnets repulsion
 10. Bar magnet and coil induction
 11. Current (line) tilts bar magnet compass
+12. Wire (line) longitudinal tension
 
 ---
 ### Why?

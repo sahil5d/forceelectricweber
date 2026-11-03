@@ -1,13 +1,3 @@
-function pct_diff(approx, sim) {
-    return trim((approx - sim) / Math.abs(sim) * 100) + '%';
-}
-
-function log_force_cmp(label_sim, f_sim, label_approx, f_approx) {
-    hud_log(label_sim, trim(f_sim), 'N');
-    hud_log(label_approx, trim(f_approx), 'N');
-    hud_log('Diff:', pct_diff(f_approx, f_sim));
-}
-
 function post_line() {
     var testelec = particles[0];
     // Analytical magnetic force: F_y = q * v0 * B, where B = (mu0 * I) / (2 * pi * d0)

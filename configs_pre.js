@@ -120,7 +120,6 @@ function pre_coil() {
     var x_start = -0.5 * COIL_V0 * (stepsmax * timestep);
     add_particle({
         prop_id: 'elec_test_coil',
-        prop_xstart: x_start,
         // prop_history: [new p(x_start, 0, 0)],
         prop_p: new p(x_start, 0, 0),
         prop_v: new vec(COIL_V0, 0, 0),
@@ -172,7 +171,6 @@ function pre_line_ac() {
             {
                 prop_p: new p(xe, 0, 0),
                 prop_a: new vec(ax0, 0, 0),
-                prop_anext: new vec(ax0, 0, 0),
             }
         );
     }
@@ -303,7 +301,6 @@ function build_lines_parallel(vd2_dir) {
                 prop_group: ws.group,
                 prop_ispar: true,
                 prop_is_par_lead: true,
-                prop_wire_id: ws.id,
                 prop_lead_idx: ws.lead_idx,
                 prop_vd: ws.vd,
                 prop_ystart: ws.y0,
@@ -328,7 +325,6 @@ function build_lines_parallel(vd2_dir) {
                     prop_iswire: true,
                     prop_group: ws2.group,
                     prop_ispar: true,
-                    prop_wire_id: ws2.id,
                     prop_lead_idx: ws2.lead_idx,
                     prop_vd: ws2.vd,
                     prop_p: new p(xj, ws2.y0, 0),
@@ -374,7 +370,6 @@ const MCOIL_Z0 = -6.0; // initial center z-position of bar magnet in Config 10
 const OERSTED_Z0 = -2.8; // m, z-position (< 0) of bar magnet on z-axis in Config 11
 const OERSTED_L = 45; // m, length of DC wire in Config 11
 const OERSTED_N = 120; // segments along DC wire in Config 11
-const OERSTED_DX = OERSTED_L / OERSTED_N;
 const OERSTED_VD = 0.045 * CSPEED; // DC wire electron drift speed (+x) in Config 11
 const OERSTED_Q = 1.15e14; // charge per DC wire segment in Config 11
 
@@ -403,39 +398,6 @@ function for_each_mag_seg(fn, include_visual) {
     }
 }
 
-function sync_bar_magnet(mag, sync_visual) {
-    var cosT = Math.cos(mag.theta), sinT = Math.sin(mag.theta);
-    for (var pt of mag.particles) {
-        var cosP = Math.cos(pt.prop_phi), sinP = Math.sin(pt.prop_phi);
-        var u = pt.prop_uc + MAG_R * cosP;
-        var w = pt.prop_wc + MAG_R * sinP;
-        var dx = pt.prop_s * cosT - u * sinT;
-        var dy = pt.prop_s * sinT + u * cosT;
-        pt.prop_dx = dx;
-        pt.prop_dy = dy;
-        pt.prop_p.set(mag.x + dx, mag.y + dy, mag.z + w);
-        var vrx = mag.vx - mag.omega * dy, vry = mag.vy + mag.omega * dx;
-        if (pt.prop_charge > 0) {
-            pt.prop_v.set(vrx, vry, 0);
-        } else {
-            pt.prop_v.set(vrx + mag.vd * sinP * sinT, vry - mag.vd * sinP * cosT, mag.vd * cosP);
-        }
-    }
-    if (sync_visual) {
-        var phi_shift = mag.phi_shift;
-        for (var vpt of mag.visual_particles) {
-            var phi = vpt.prop_charge < 0 ? vpt.prop_phi + phi_shift : vpt.prop_phi;
-            var u_v = vpt.prop_uc + MAG_R * Math.cos(phi);
-            var w_v = vpt.prop_wc + MAG_R * Math.sin(phi);
-            vpt.prop_p.set(
-                mag.x + vpt.prop_s * cosT - u_v * sinT,
-                mag.y + vpt.prop_s * sinT + u_v * cosT,
-                mag.z + w_v
-            );
-        }
-    }
-}
-
 function add_bar_magnet(id, x0, theta0, vd, z0) {
     z0 = z0 || 0;
     var pmass = MAG_PMASS;
@@ -458,7 +420,6 @@ function add_bar_magnet(id, x0, theta0, vd, z0) {
                 prop_ismagnet: true,
                 prop_iswire: !is_active,
                 prop_visual_only: !is_active,
-                prop_mag_id: id,
                 prop_s: s,
                 prop_uc: uc,
                 prop_wc: wc,
@@ -541,7 +502,10 @@ const TENSION_PMASS = TENSION_Q * M_PROT; // mass per particle in segment
 function pre_line_tension() {
     // Straight wire along x-axis where all segments interact pairwise via calc_forces():
     // Each segment k has its own prop_group ('tseg' + k) and prop_iswire: false,
-    // so same-segment proton & electron skip each other while all distinct segments repel longitudinally
+    // so same-segment proton & electron skip each other while all distinct segments repel longitudinally.
+    // Note: each segment's proton and electron receive equal half-shares (+kq^2/r^2 * vd^2/2c^2) of the longitudinal
+    // repulsion and are coupled together at x_new with proton mass (TENSION_PMASS), since any charge separation
+    // in a real wire is immediately locked together by the much stronger (c^2/vd^2 ~ 500x) Coulomb restoring force.
     for (var k = 1; k <= TENSION_N; k++) {
         var x0 = -TENSION_L / 2 + (k - 0.5) * TENSION_DX;
         var lead_idx = 2 * (k - 1);
