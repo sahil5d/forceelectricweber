@@ -5,7 +5,7 @@
 
 Note: wires (lines), coils, bar magnets are modeled as custom objects (wire segment objects). The sim electrons drift along fixed protons without computing internal forces (can model inside the atom in a future project).
 
-![screenshot1](screenshot1.png)
+![screenshot10](screenshot10.png)
 
 ---
 ### Formula
@@ -31,7 +31,7 @@ Note: careful with scalar, vectors, dots, doubledots. See code in `calc_forces()
 ---
 ### Why?
 - Charge-to-charge force. Elegant.
-- Formula by Weber builds on formulas by Coulomb (kq₁q₂/r^2 force between charges) and Ampère (force between wires), and can replace formulas by Biot, Savart, Faraday, Lenz, Neumann, Lorentz
+- Formula by Weber builds on formulas by Coulomb (kq₁q₂/r² force between charges) and Ampère (force between wires), and can replace formulas by Biot, Savart, Faraday, Lenz, Neumann, Lorentz
 - Can describe all macro electric and magnetic phenomena
 - Features
   - Direct (without the B assist field)

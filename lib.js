@@ -23,8 +23,7 @@ const INV_CSQUARED = 1 / CSQUARED;
 const JOULETOEV = 6.241509 * 10 ** 18;
 
 const MAX_PARTICLES = 10000;
-// const TRAIL_LEN = 100;
-const ELEC_DRAW_OFFSET = 0.02;
+const ELEC_DRAW_OFFSET = 0.0002; // m
 
 var points_nuke = null;
 var points_elec = null;
@@ -32,11 +31,27 @@ const pos_nuke = new Float32Array(MAX_PARTICLES * 3);
 const pos_elec = new Float32Array(MAX_PARTICLES * 3);
 var circle_tex = null;
 
+// Particle kinds (`prop_kind`) and force-target flag (`prop_iswire`):
+//   Target kinds (`prop_iswire: false` — accumulate Weber forces in `calc_forces()`):
+//     'free'                : unconstrained test particle (Configs 1–4)
+//     'coil_secondary_lead' : lead electron on secondary coil receiving induced tangential force (Configs 5, 10)
+//     'line_plll_lead'      : central lead atom of a parallel wire receiving transverse force (Configs 6, 7)
+//     'line_tension'        : wire segment receiving longitudinal inter-segment force (Config 12)
+//     'magnet'              : bar-magnet segment (active corner coils have `prop_iswire: false`; interior coils have `prop_visual_only: true`)
+//   Source-only kinds (`prop_iswire: true` — exert Weber forces as source j, skipped as target i and in F = ma):
+//     'line'                : straight DC wire segment with constant electron drift (Configs 1, 11)
+//     'line_ac'             : straight AC wire segment with oscillating electrons (Config 3)
+//     'line_plll'           : non-lead parallel wire segment that follows 'line_plll_lead' (Configs 6, 7)
+//     'coil'                : circular coil segment with steady circulating electrons (Configs 2, 10)
+//     'coil_turnon'         : circular coil segment whose electron speed ramps up after turn-on (Config 4)
+//     'coil_ac'             : AC primary coil segment in transformer (Config 5)
+//     'coil_secondary'      : non-lead secondary coil segment that follows 'coil_secondary_lead' (Configs 5, 10)
 function add_particle(opts) {
     var charge = opts.prop_charge !== undefined ? opts.prop_charge : -1;
     var p_obj = Object.assign({
         prop_idx: particles.length, // particles.length grows with each push below, assigning sequential index 0, 1, 2, ...
-        prop_iswire: false,
+        prop_kind: 'free',
+        prop_iswire: false, // true = source-only particle (exerts force as j, skipped as target i and in F = ma)
         prop_p: new p(0, 0, 0),
         prop_v: new vec(0, 0, 0),
         prop_a: new vec(0, 0, 0),
@@ -48,7 +63,7 @@ function add_particle(opts) {
     if (opts.prop_v) p_obj.prop_v = opts.prop_v.clone();
     if (opts.prop_a) p_obj.prop_a = opts.prop_a.clone();
 
-    if (p_obj.prop_charge < 0 && (p_obj.prop_iswire || p_obj.prop_is_sec_lead || p_obj.prop_ismagnet || p_obj.prop_istension)) {
+    if (p_obj.prop_charge < 0 && p_obj.prop_kind !== 'free') {
         var theta_off = Math.random() * 2 * Math.PI;
         var phi_off = Math.acos(2 * Math.random() - 1);
         var r_off = (0.4 + 0.6 * Math.random()) * ELEC_DRAW_OFFSET;
@@ -62,19 +77,6 @@ function add_particle(opts) {
     particles.push(p_obj);
     return p_obj;
 }
-
-/*
-function record_trail(particle) {
-    if (!particle.prop_history) return;
-    if (particle.prop_history.length < TRAIL_LEN) {
-        particle.prop_history.push(particle.prop_p.clone());
-    } else {
-        var oldest = particle.prop_history.shift();
-        oldest.copy(particle.prop_p);
-        particle.prop_history.push(oldest);
-    }
-}
-*/
 
 function wrap_coord(x, L) {
     if (x > L / 2) return x - L;
@@ -102,12 +104,17 @@ function get_circle_texture() {
 }
 
 function make_point_cloud(buf, color, tex) {
-    var geom = new THREE.BufferGeometry();
-    geom.setAttribute('position', new THREE.BufferAttribute(buf, 3));
-    var pts = new THREE.Points(
-        geom,
-        new THREE.PointsMaterial({ color: color, size: 6, sizeAttenuation: false, map: tex, alphaTest: 0.5 })
-    );
+    var attr = new THREE.InstancedBufferAttribute(buf, 3);
+    var mat = new THREE.PointsNodeMaterial({
+        color: color,
+        size: 5,
+        sizeAttenuation: false,
+        map: tex,
+        alphaTest: 0.5,
+        positionNode: new THREE.BufferAttributeNode(attr),
+    });
+    var pts = new THREE.Sprite(mat);
+    pts.attr = attr;
     pts.frustumCulled = false;
     scene.add(pts);
     return pts;
@@ -133,7 +140,7 @@ function plotallparticles() {
 
     for (var i = 0; i < particles.length; i++) {
         var particle = particles[i];
-        if (particle.prop_is_par_lead) {
+        if (particle.prop_kind === 'line_plll_lead') {
             continue;
         }
 
@@ -143,48 +150,27 @@ function plotallparticles() {
             pos_nuke[n_nuke * 3 + 2] = particle.prop_p.z;
             n_nuke++;
         } else {
-            if (particle.prop_visual_only && particle.prop_iscoil) {
-                particle.prop_p.x = (particle.prop_xc || 0) + particle.prop_r * Math.cos(particle.prop_phi);
-                particle.prop_p.y = (particle.prop_yc || 0) + particle.prop_r * Math.sin(particle.prop_phi);
+            if (particle.prop_visual_only && particle.prop_kind === 'coil') {
+                particle.prop_draw_x = (particle.prop_xc || 0) + particle.prop_r * Math.cos(particle.prop_phi);
+                particle.prop_draw_y = (particle.prop_yc || 0) + particle.prop_r * Math.sin(particle.prop_phi);
             }
+            // prop_p holds the neutral segment physics position; prop_draw_x/y/z holds the drifted visual electron position
             var doff = particle.prop_draw_offset;
-            pos_elec[n_elec_plot * 3] = particle.prop_p.x + (doff ? doff.x : 0);
-            pos_elec[n_elec_plot * 3 + 1] = particle.prop_p.y + (doff ? doff.y : 0);
-            pos_elec[n_elec_plot * 3 + 2] = particle.prop_p.z + (doff ? doff.z : 0);
+            var draw_x = particle.prop_draw_x !== undefined ? particle.prop_draw_x : particle.prop_p.x;
+            var draw_y = particle.prop_draw_y !== undefined ? particle.prop_draw_y : particle.prop_p.y;
+            var draw_z = particle.prop_draw_z !== undefined ? particle.prop_draw_z : particle.prop_p.z;
+            pos_elec[n_elec_plot * 3] = draw_x + (doff ? doff.x : 0);
+            pos_elec[n_elec_plot * 3 + 1] = draw_y + (doff ? doff.y : 0);
+            pos_elec[n_elec_plot * 3 + 2] = draw_z + (doff ? doff.z : 0);
             n_elec_plot++;
         }
-
-        /*
-        if (particle.prop_history && particle.prop_history.length > 1) {
-            if (!particle.prop_trail_line) {
-                var geom_trail = new THREE.BufferGeometry();
-                particle.prop_trail_buf = new Float32Array(TRAIL_LEN * 3);
-                geom_trail.setAttribute('position', new THREE.BufferAttribute(particle.prop_trail_buf, 3));
-                var mat_trail = new THREE.LineBasicMaterial({ color: 0xbcb8b4 });
-                particle.prop_trail_line = new THREE.Line(geom_trail, mat_trail);
-                particle.prop_trail_line.frustumCulled = false;
-                scene.add(particle.prop_trail_line);
-            }
-            var hist = particle.prop_history;
-            var n_pts = hist.length;
-            var buf = particle.prop_trail_buf;
-            var t_off = particle.prop_draw_offset;
-            for (var h = 0; h < n_pts; h++) {
-                buf[h * 3] = hist[h].x + (t_off ? t_off.x : 0);
-                buf[h * 3 + 1] = hist[h].y + (t_off ? t_off.y : 0);
-                buf[h * 3 + 2] = hist[h].z + (t_off ? t_off.z : 0);
-            }
-            particle.prop_trail_line.geometry.setDrawRange(0, n_pts);
-            particle.prop_trail_line.geometry.attributes.position.needsUpdate = true;
-        }
-        */
     }
 
-    points_nuke.geometry.setDrawRange(0, n_nuke);
-    points_nuke.geometry.attributes.position.needsUpdate = true;
+    points_nuke.count = n_nuke;
+    points_nuke.attr.needsUpdate = true;
 
-    points_elec.geometry.setDrawRange(0, n_elec_plot);
-    points_elec.geometry.attributes.position.needsUpdate = true;
+    points_elec.count = n_elec_plot;
+    points_elec.attr.needsUpdate = true;
 }
 
 function plotlinesegment(argdir, argorigin, arglength, arghex) {
@@ -246,7 +232,8 @@ function hud_clear() {
 }
 
 function hud_log() {
-    var msg = Array.prototype.slice.call(arguments).map(function (a) {
+    var args = Array.prototype.slice.call(arguments);
+    var msg = args.map(function (a) {
         return typeof a === 'object' ? JSON.stringify(a) : String(a);
     }).join(' ');
     if (typeof document !== 'undefined') {
@@ -255,8 +242,22 @@ function hud_log() {
             var ph = el.querySelector('.hud-placeholder');
             if (ph) ph.remove();
             var line = document.createElement('div');
-            line.className = 'hud-line';
-            line.textContent = msg;
+            if (args.length >= 2 && typeof args[0] === 'string' && args[0].endsWith(':')) {
+                line.className = 'hud-row';
+                var key_span = document.createElement('span');
+                key_span.className = 'hud-key';
+                key_span.textContent = args[0].slice(0, -1);
+                var val_span = document.createElement('span');
+                val_span.className = 'hud-val';
+                val_span.textContent = args.slice(1).map(function (a) {
+                    return typeof a === 'object' ? JSON.stringify(a) : String(a);
+                }).join(' ');
+                line.appendChild(key_span);
+                line.appendChild(val_span);
+            } else {
+                line.className = 'hud-note';
+                line.textContent = msg;
+            }
             el.appendChild(line);
             return;
         }
